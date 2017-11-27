@@ -8,7 +8,7 @@ import java.io.*;
 
 
 
-public class HelloWorld extends ReceiverAdapter {
+public class SimpleMessagePassing extends ReceiverAdapter {
 
 	JChannel channel;
 	String user_name=System.getProperty("user.name", "n/a");
@@ -46,7 +46,7 @@ public class HelloWorld extends ReceiverAdapter {
 	}
 	public static void main(String[] args) throws Exception {
 		// TODO Auto-generated method stub
-		new HelloWorld().start();
+		new SimpleMessagePassing().start();
 		
 	}
 
