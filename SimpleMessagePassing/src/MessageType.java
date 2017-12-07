@@ -1,0 +1,8 @@
+
+public enum MessageType {
+	NORMAL_RECEIVE,
+	IGNORE,
+	CONFIG_START,
+	CONFIG_STOP,
+	CONFIG_FINISH
+}

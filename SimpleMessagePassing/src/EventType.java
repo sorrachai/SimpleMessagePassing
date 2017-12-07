@@ -1,0 +1,8 @@
+
+public enum EventType {
+	LOCAL_EVENT,
+	SEND_MESSAGE,
+	RECEIVE_MESSAGE,
+	STOP,
+	START
+}

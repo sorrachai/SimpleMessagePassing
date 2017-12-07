@@ -21,9 +21,9 @@ public class VectorClock implements Timestamp{
 	}
 
 	@Override
-	public void timestampReceiveEvent(Message m) {
+	public void timestampReceiveEvent(Timestamp m) {
 		// TODO Auto-generated method stub
-		VectorClock fromMessage = (VectorClock) m.getObject();
+		VectorClock fromMessage = (VectorClock) m;
 		entries[myIndex]++;
 		for(int i=0;i<entries.length;i++) {
 			entries[i] = Math.max(entries[i], fromMessage.entries[i]);
