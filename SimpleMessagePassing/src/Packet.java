@@ -6,7 +6,7 @@ public class Packet implements java.io.Serializable {
 	
 	private MessageType type;
 	private Timestamp localTimestamp;
-	private Vector<LocalEvent> allLocalEvents;
+	private LocalTraceCollector allLocalEvents;
 	private int indexFrom;
 	private RunningParameters parameters; 
 	  
@@ -18,7 +18,7 @@ public class Packet implements java.io.Serializable {
 			  this.type = MessageType.IGNORE;
 		  }
 	  }
-	  public Packet(MessageType type, Vector<LocalEvent> allLocalEvents,int indexFrom) {
+	  public Packet(MessageType type, LocalTraceCollector allLocalEvents,int indexFrom) {
 		  if(type==MessageType.CONFIG_FINISH) {
 			  this.type = type;
 		  	  this.allLocalEvents = allLocalEvents;
@@ -51,7 +51,7 @@ public class Packet implements java.io.Serializable {
 	  public Timestamp getLocalTimestamp() {
 		  return localTimestamp;
 	  }
-	  public Vector<LocalEvent> getAllLocalEvents() {
+	  public LocalTraceCollector getAllLocalEvents() {
 		  return allLocalEvents;
 	  }
 	  public int getIndexFrom() {
