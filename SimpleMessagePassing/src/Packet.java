@@ -1,4 +1,4 @@
-import java.util.Vector;
+
 
 public class Packet implements java.io.Serializable {
 
@@ -21,7 +21,7 @@ public class Packet implements java.io.Serializable {
 	  public Packet(MessageType type, LocalTraceCollector allLocalEvents,int indexFrom) {
 		  if(type==MessageType.CONFIG_FINISH) {
 			  this.type = type;
-		  	  this.allLocalEvents = allLocalEvents;
+		  	  this.allLocalEvents = allLocalEvents; 
 		  	  this.indexFrom = indexFrom;
 		  } else {
 			  this.type = MessageType.IGNORE;

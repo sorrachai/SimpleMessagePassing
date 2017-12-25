@@ -1,6 +1,5 @@
 import java.io.Serializable; 
-import java.util.ArrayList;
-import java.util.Date;;
+import java.util.ArrayList; 
 
 public class LocalTraceCollector implements Serializable {
 
@@ -9,19 +8,37 @@ public class LocalTraceCollector implements Serializable {
 	 */
 	private static final long serialVersionUID = -955345333561783777L;
 	public LocalTraceCollector() {
+		
 		localTrace = new ArrayList<>();
 		hvcTrace = new ArrayList<>();
 		hvcSizeOverTime = new ArrayList<>();
+		hvcSizeOverEpsilon = new ArrayList<>();
+		hvcSizeOverEpsilonNumEvents = new ArrayList<>();
+        hvcSizeOverTimeDomain = new ArrayList<>();
+        hvcSizeOverEpsilonDomain = new ArrayList<>();
+        
 	}
-	
+ 
 	public ArrayList<LocalEvent> getLocalTrace() {
-		return localTrace;
+		return this.localTrace;
 	}
 	public ArrayList<LocalEvent> getHvcTrace() {
-		return hvcTrace;
+		return this.hvcTrace;
+	}
+	public ArrayList<Integer> getHvcSizeOverEpsilonNumEvents() {
+		return this.hvcSizeOverEpsilonNumEvents;
 	}
 	public ArrayList<Integer> getHvcSizeOverTime() {
-		return hvcSizeOverTime;
+		return this.hvcSizeOverTime;
+	}
+	public ArrayList<Integer> getHvcSizeOverEpsilon() {
+		return this.hvcSizeOverEpsilon;
+	}
+	public ArrayList<Long> getHvcSizeOverEpsilonDomain() {
+		return this.hvcSizeOverEpsilonDomain;
+	}
+	public ArrayList<Long> getHvcSizeOverTimeDomain() {
+		return this.hvcSizeOverTimeDomain;
 	}
 	public void pushLocalTrace(LocalEvent e) {
 		localTrace.add(e);
@@ -72,11 +89,12 @@ public class LocalTraceCollector implements Serializable {
  		 } 
 	}	
 	public void computeHvcSizeOverTime() {
-		hvcSizeOverTime = new ArrayList<>();
+	//	hvcSizeOverTime = new ArrayList<>();
 		//ArrayList<Long> tlong = new ArrayList<>();
 		for(LocalEvent e : hvcTrace) {
 			//tlong.add(e.localWallClock);
 			hvcSizeOverTime.add(((HybridVectorClock)(e.localTimestamp)).getNumberActiveEntries());
+			hvcSizeOverTimeDomain.add(e.localWallClock);
 		}
 	/*	System.out.print("HVC_SIZE TIME \n[ ");
 		long first_time = tlong.get(0);
@@ -91,6 +109,25 @@ public class LocalTraceCollector implements Serializable {
 		}
 		System.out.println("]");*/
 	}
+	public void computeHvcSizeOverEpsilon(long startEpsilon, long incrementInterval, long stopEpsilon) {
+		 
+		 
+		ArrayList<LocalEvent> subHvcTrace = new ArrayList<LocalEvent>(hvcTrace.subList(Math.min(0, hvcTrace.size()), hvcTrace.size()));
+		for(long eps = startEpsilon; eps <= stopEpsilon; eps += incrementInterval ) {
+			int sumHVCSize = 0; 
+			int numEvents = 0;
+			for(LocalEvent e : subHvcTrace) {
+				sumHVCSize +=  ((HybridVectorClock)(e.localTimestamp)).getNumberActiveEntries(eps);
+				numEvents++;
+			}
+			//hvcSizeOverEpsilon += Integer.toString(sumHVCSize)+" ";
+			hvcSizeOverEpsilon.add(sumHVCSize);
+			hvcSizeOverEpsilonNumEvents.add(numEvents);
+			hvcSizeOverEpsilonDomain.add(eps);
+			//hvcSizeOverEpsilonNumEvents += Integer.toString(numEvents)+" ";
+		} 
+	 
+	}
 	public void printLocalTrace() {
 		for(LocalEvent e : localTrace) {
 			e.localTimestamp.print();
@@ -98,5 +135,9 @@ public class LocalTraceCollector implements Serializable {
 	}
 	private ArrayList<LocalEvent> hvcTrace;
 	private ArrayList<LocalEvent> localTrace;
-	private ArrayList<Integer> hvcSizeOverTime; 
+	private ArrayList<Integer> hvcSizeOverTime;
+	private ArrayList<Long> hvcSizeOverTimeDomain;
+	private ArrayList<Integer> hvcSizeOverEpsilon;  
+	private ArrayList<Long> hvcSizeOverEpsilonDomain; 
+	private ArrayList<Integer> hvcSizeOverEpsilonNumEvents;  
 }

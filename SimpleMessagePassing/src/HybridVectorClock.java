@@ -36,15 +36,23 @@ public class HybridVectorClock extends Timestamp {
 		
 	}
 	public int getNumberActiveEntries() {
-		int num_inactive =0;
-		for(int i=0;i<numProcesses;i++) { 
+		//process 0 is the leader which is not participating message exchanges.
+		int num_inactive =1;
+		for(int i=1;i<numProcesses;i++) { 
+			if(entries[myIndex] - entries[i]>= epsilon) num_inactive++;
+		}
+		return numProcesses-num_inactive;
+	}
+	public int getNumberActiveEntries(long epsilon) {
+		int num_inactive =1;
+		for(int i=1;i<numProcesses;i++) { 
 			if(entries[myIndex] - entries[i]>= epsilon) num_inactive++;
 		}
 		return numProcesses-num_inactive;
 	}
 	public void timestampDummyEvent(long t) {
-		if(entries[myIndex] > t) System.out.println("Warning: entries[myIndex] > t in timestampDummyEvent" );;
-		entries[myIndex] = Math.max(entries[myIndex], (int)t);
+		//if(entries[myIndex] > t) System.out.println("Warning: entries[myIndex] > t in timestampDummyEvent" );;
+		entries[myIndex] = Math.max(entries[myIndex], t);
 	}
 	
 	@Override

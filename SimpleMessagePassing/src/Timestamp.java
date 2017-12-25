@@ -1,7 +1,12 @@
-import org.jgroups.Message;
+
 
 public abstract class Timestamp  implements java.io.Serializable {
 	 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -2684565411535156950L;
+
 	public Timestamp(int numProcesses, int myIndex) { 
 		
 	}

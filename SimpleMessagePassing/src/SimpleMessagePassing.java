@@ -3,15 +3,15 @@ import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View; 
 
-import java.io.*;
-import java.util.Date;
-import java.util.Random;
+import java.io.*; 
+import java.util.Date; 
 import java.util.Timer;
 import java.util.TimerTask; 
 
 
 public class SimpleMessagePassing extends ReceiverAdapter {
 	
+	@SuppressWarnings("resource")
 	private void start() throws Exception {
 		channel=new JChannel().setReceiver(this);
        // channel=new JChannel(); // use the default config, udp.xml
@@ -21,10 +21,11 @@ public class SimpleMessagePassing extends ReceiverAdapter {
     }
 	
 	public void viewAccepted(View new_view) {
-		//System.out.println("** view: " + new_view);
+		System.out.println("** view: " + new_view);
 	}
 	
 	public void receive(Message msg) {
+		
 		try {
 			Packet receivedPacket = (Packet) (msg.getObject());
 			switch(receivedPacket.getMessageType()) {
@@ -40,6 +41,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 				break;
 				case CONFIG_START:
 					parameters = new RunningParameters(receivedPacket.getRunningParameter());
+					
 					state = LocalState.SETUP;
 				break;
 				case CONFIG_STOP:
@@ -47,10 +49,18 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 				break;
 				case CONFIG_FINISH: 
 					System.out.println("Received CONFIG_FINISH");
-					leaderTraceCollector.addTraceFrom(receivedPacket.getAllLocalEvents(),receivedPacket.getIndexFrom());
+					LocalTraceCollector receivedLocalTrace = receivedPacket.getAllLocalEvents();
+					int from = receivedPacket.getIndexFrom();
+					if(parameters.runQuery) {
+						leaderTraceCollector.addHvcSizeOverEpsilon(receivedLocalTrace, from);
+					}
+					leaderTraceCollector.addTraceFrom(receivedLocalTrace,from);
+					
 					if ( leaderTraceCollector.hasReceivedFromAllMembers() ) {
+						//leaderTraceCollector.printGlobalTrace();
+						leaderTraceCollector.writeHvcSizeOverTimeToFile("HvcOverTime.out");
+						if(parameters.runQuery) leaderTraceCollector.writeHvcSizeOverEpsilonToFile("HvcOverEpsilon.out");
 						state = LocalState.IDLE;
-						leaderTraceCollector.printGlobalTrace();
 					} 
 				break;
 				case IGNORE: 
@@ -111,14 +121,13 @@ public class SimpleMessagePassing extends ReceiverAdapter {
     }
 	private void setup(){
 		this.members = channel.getView().getMembers();  
-		this.myIndexOfTheGroup = indexOfMyAddress(members);
-		this.numberOfMembers = members.size();
-		this.randomSource = new Random();
-		this.localClock = new HybridVectorClock(numberOfMembers, myIndexOfTheGroup,parameters.epsilon);
+		this.myIndexOfTheGroup = indexOfMyAddress(members); 
+	 	parameters.setRandom(myIndexOfTheGroup);
+		this.localClock = new HybridVectorClock(parameters.numberOfMembers, myIndexOfTheGroup,parameters.globalEpsilon);
 	}
 	private void leaderSetup() {
 		setup();
-		leaderTraceCollector = new LeaderTraceCollector(numberOfMembers);
+		leaderTraceCollector = new LeaderTraceCollector(parameters.numberOfMembers,parameters.startTime.getTime());
 	}
 	private void nonLeaderSetup() {
 		setup();
@@ -130,13 +139,15 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						+ "[int timeunit:ms] "
 						+ "[unicast_probability:0-1] "
 						+ "[long hvc_collecting_peroid:ms] "
-						+ "[long epsilon:ms]");
+						+ "[long epsilon:ms] "
+						+ "[string uniform || zipf={double skew}]" 
+						+ "[string query: no || yes={epsilon_start:epsilon_interval:epsilon_stop}");
 		System.out.println("usage2: exit");
 	}
 	private boolean correctFormat(String[] cmd) {
 		
-		boolean lengthEqual6 = cmd.length ==6;
-		if(!lengthEqual6) { 
+		boolean lengthEqual8 = cmd.length == 8;
+		if(!lengthEqual8) { 
 			return false;
 		}
 		boolean firstisint = isInteger(cmd[1]);
@@ -163,14 +174,23 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		Date startTimeMessage = new Date(System.currentTimeMillis()+ 5*1000);
 		long period = Long.parseLong(cmd[4]);
 		long epsilon = Long.parseLong(cmd[5]);
+		String destinationDistributionString = cmd[6].toLowerCase().trim();
+		String queryString = cmd[7].toLowerCase().trim();
+		int numberOfMembers = channel.getView().getMembers().size();
+		long initialRandomSeed =  System.currentTimeMillis(); 
 		Packet packet = new Packet(MessageType.CONFIG_START,
 							new RunningParameters( 
+							    numberOfMembers,  
+							    initialRandomSeed,
 								unicastProbabilityMessage,
 								timeunitMessage,
 								durationMessage,
 								startTimeMessage,
 								period,
-								epsilon) 
+								epsilon,
+								destinationDistributionString,
+								queryString
+								) 
 		);
 	    channel.send(null,packet);
 	    
@@ -197,6 +217,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		while(true) { 
 			state = LocalState.IDLE;
 			Thread.sleep(100); 
+			printInstruction();
 			System.out.print("> ");
 			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 			String line =in.readLine().toLowerCase();
@@ -223,65 +244,72 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 			} 
 		}
 	}
-	private void nonLeaderRoutine() throws Exception {
+	private void nonLeaderRoutine() {
 		 //the following loop is for non-leaders
-		state = LocalState.IDLE;
-		long initTime = 0;
-		long elapsedTime = 0L; 
-		long initL = 0;
-		long lastL = 0;
-		//local state may be changed upon receiving a message
-		while(true) {
-			switch(state) {
-			case IDLE:  
-				Thread.sleep(1000); 
-				System.out.print(".");
-				//waiting for leader's command to run or to stop the programs.
-				continue;
-			case SETUP: 
-				 nonLeaderSetup(); 
-				 System.out.println("SETUP READY: My index is " + Integer.toString(myIndexOfTheGroup));
-				 initL = parameters.startTime.getTime();
-				 lastL = initL+parameters.duration;
-				 waitUntil(parameters.startTime);
-				 initTime  = System.currentTimeMillis();
-				 localClock.timestampLocalEvent();
-				 localClock.timestampLocalEventHLC();
-				 //initL = localClock.getL();
-				 localTraceCollector.pushLocalTrace(new LocalEvent(EventType.START, localClock, initL));
-				 state = LocalState.EXECUTE;
-				 continue;
-			case EXECUTE: 
-				Thread.sleep(parameters.timeUnitMillisec);
-				boolean sendMessage = randomSource.nextDouble() <= parameters.unicastProbability;
-				if(sendMessage) {
-					int destination = randomSource.nextInt(numberOfMembers-1)+1;
-					localClock.timestampSendEvent();
-					localClock.timestampSendEventHLC();
-					Packet packet = new Packet(MessageType.NORMAL_RECEIVE,localClock);
-					channel.send(members.get(destination),packet);
-					localTraceCollector.pushLocalTrace(new LocalEvent(EventType.SEND_MESSAGE, localClock, System.currentTimeMillis()));
-					//System.out.print("Send to "+  Integer.toString(destination)+ ": ");
-					//localClock.print();
+		try {
+			state = LocalState.IDLE;
+			long initTime = 0;
+			long elapsedTime = 0L; 
+			long initL = 0;
+			long lastL = 0;
+			//local state may be changed upon receiving a message
+			while(true) {
+				switch(state) {
+				case IDLE:  
+					Thread.sleep(1000); 
+					System.out.print(".");
+					//waiting for leader's command to run or to stop the programs.
+					continue;
+				case SETUP: 
+					 nonLeaderSetup(); 
+					 System.out.println("SETUP READY: My index is " + Integer.toString(myIndexOfTheGroup));
+					 initL = parameters.startTime.getTime();
+					 lastL = initL+parameters.duration;
+					 waitUntil(parameters.startTime);
+					 initTime  = System.currentTimeMillis();
+					 localClock.timestampLocalEvent();
+					 localClock.timestampLocalEventHLC();
+					 //initL = localClock.getL();
+					 localTraceCollector.pushLocalTrace(new LocalEvent(EventType.START, localClock, initL));
+					 state = LocalState.EXECUTE;
+					 continue;
+				case EXECUTE: 
+					Thread.sleep(parameters.timeUnitMillisec);
+					boolean sendMessage = parameters.nextDouble() <= parameters.unicastProbability;
+					if(sendMessage) {
+						int destination = parameters.nextDestination();
+						localClock.timestampSendEvent();
+						localClock.timestampSendEventHLC();
+						Packet packet = new Packet(MessageType.NORMAL_RECEIVE,localClock);
+						channel.send(members.get(destination),packet);
+						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.SEND_MESSAGE, localClock, System.currentTimeMillis()));
+						//System.out.print("Send to "+  Integer.toString(destination)+ ": ");
+						//localClock.print();
+					}
+					 elapsedTime =  System.currentTimeMillis() - initTime;
+					 if(elapsedTime > parameters.duration) state = LocalState.FINISH;
+					 continue;
+				case FINISH: 
+					localClock.timestampLocalEvent();
+					localClock.timestampLocalEventHLC(); 
+					localTraceCollector.pushLocalTrace(new LocalEvent(EventType.STOP,localClock, localClock.getL()));
+					localTraceCollector.fillHvcTrace(initL, parameters.HvcCollectingPeriod,lastL);
+					localTraceCollector.computeHvcSizeOverTime();
+					if(parameters.runQuery) {
+						localTraceCollector.computeHvcSizeOverEpsilon(parameters.epsilonStart, parameters.epsilonInterval, parameters.epsilonStop);
+					}
+					Packet packet = new Packet(MessageType.CONFIG_FINISH,localTraceCollector, myIndexOfTheGroup);
+					channel.send(members.get(0),packet);
+					state = LocalState.IDLE; 
+					continue;
+				case STOP: 
+					 
+				default:
 				}
-				 elapsedTime =  System.currentTimeMillis() - initTime;
-				 if(elapsedTime > parameters.duration) state = LocalState.FINISH;
-				 continue;
-			case FINISH: 
-				localClock.timestampLocalEvent();
-				localClock.timestampLocalEventHLC(); 
-				localTraceCollector.pushLocalTrace(new LocalEvent(EventType.STOP,localClock, localClock.getL()));
-				localTraceCollector.fillHvcTrace(initL, parameters.HvcCollectingPeriod,lastL);
-				localTraceCollector.computeHvcSizeOverTime();
-				Packet packet = new Packet(MessageType.CONFIG_FINISH,localTraceCollector, myIndexOfTheGroup);
-				channel.send(members.get(0),packet);
-				state = LocalState.IDLE;
-				continue;
-			case STOP: 
-				 
-			default:
+				break;
 			}
-			break;
+		} catch(Exception e) {
+			e.printStackTrace();
 		}
 	}
 	private void localComputation() throws Exception {
@@ -325,16 +353,14 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	JChannel channel;
 	String userName=System.getProperty("user.name", "n/a");
 	
-	private int myIndexOfTheGroup;
-	private int numberOfMembers; 
-	
+	private int myIndexOfTheGroup; 
+	private LocalState state; 
 	private java.util.List<org.jgroups.Address> members;
 	
 	private LeaderTraceCollector leaderTraceCollector;
 	private LocalTraceCollector localTraceCollector;
 	
-	private RunningParameters parameters;
+	//parameters contain global variables and local variables with parameters from the leader.
+	private RunningParameters parameters; 
 
-	private Random randomSource; 
-	private LocalState state;
 }

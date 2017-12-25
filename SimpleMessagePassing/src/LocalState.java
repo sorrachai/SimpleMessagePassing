@@ -4,6 +4,5 @@ public enum LocalState {
 	SETUP,
 	EXECUTE,
 	FINISH,
-	STOP,
-	LEADER_WAIT
+	STOP
 }
