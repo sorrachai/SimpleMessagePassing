@@ -13,8 +13,8 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	
 	@SuppressWarnings("resource")
 	private void start() throws Exception {
+		//channel=new JChannel("simpleMessageJgroupConfig.xml").setReceiver(this);
 		channel=new JChannel().setReceiver(this);
-       // channel=new JChannel(); // use the default config, udp.xml
         channel.connect("Cluster");
         localComputation();
         channel.close();
@@ -35,8 +35,8 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						localClock.timestampReceiveEvent(ts);
 						localClock.timestampReceiveEventHLC(ts);
 						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.RECEIVE_MESSAGE,localClock,System.currentTimeMillis()));
-						System.out.print("Received: ");
-						localClock.print();
+					//	System.out.print("Received: ");
+					//	localClock.print();
 					}
 				break;
 				case CONFIG_START:
@@ -58,7 +58,9 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					
 					if ( leaderTraceCollector.hasReceivedFromAllMembers() ) {
 						//leaderTraceCollector.printGlobalTrace();
+						leaderTraceCollector.printTotalNumSentMessages();
 						leaderTraceCollector.writeHvcSizeOverTimeToFile("HvcOverTime.out");
+						leaderTraceCollector.writeHvcSizeHistogramToFile("HvcHistogram.out");
 						if(parameters.runQuery) leaderTraceCollector.writeHvcSizeOverEpsilonToFile("HvcOverEpsilon.out");
 						state = LocalState.IDLE;
 					} 
@@ -131,7 +133,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	}
 	private void nonLeaderSetup() {
 		setup();
-		localTraceCollector = new LocalTraceCollector();
+		localTraceCollector = new LocalTraceCollector(parameters.numberOfMembers);
 	}
 	private void printInstruction() {
 		System.out.println("usage: start "
@@ -170,8 +172,8 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		double unicastProbabilityMessage = Double.parseDouble(cmd[3]);
 		int durationMessage = (Integer.parseInt(cmd[1]))*1000;
 		int timeunitMessage = Integer.parseInt(cmd[2]);
-		//add 5 secs
-		Date startTimeMessage = new Date(System.currentTimeMillis()+ 5*1000);
+		//add 30 secs
+		Date startTimeMessage = new Date(System.currentTimeMillis()+ 30*1000);
 		long period = Long.parseLong(cmd[4]);
 		long epsilon = Long.parseLong(cmd[5]);
 		String destinationDistributionString = cmd[6].toLowerCase().trim();
@@ -230,9 +232,11 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 				broadcastCommand(command);
 				while(state!=LocalState.SETUP);
 				leaderSetup();		
-				waitUntilReceivedAllLocalStates();
-				//TODO run a data collection output here
-				System.out.println("The execution has been completed. YAY.");
+				waitUntilReceivedAllLocalStates(); 
+				System.out.println("The execution has been completed.");
+			}
+			else if(line.startsWith("info")) {
+				System.out.println("Number of nodes including the leader is " +channel.getView().getMembers().size());
 			}
 			else if (line.startsWith("quit") || line.startsWith("exit")) {
 				Packet packet = new Packet(MessageType.CONFIG_STOP);
@@ -345,6 +349,23 @@ public class SimpleMessagePassing extends ReceiverAdapter {
  
 	
 	public static void main(String[] args) throws Exception { 
+		   
+		for(int i=0; i < args.length; i++) {
+			System.out.println(args[i]);
+			if("-bind_addr".equals(args[i])) {
+	                System.setProperty("jgroups.bind_addr", args[++i]); 
+	                continue;
+	         }
+			if("-external_addr".equals(args[i]) ){
+				   System.setProperty("jgroups.external_addr", args[++i]); 
+	               continue;
+			}
+			if("-help".equals(args[i])) {
+				System.out.println("-bind_addr [addr] -external_addr [addr]");
+			}
+			
+		} 
+		
 		System.setProperty("java.net.preferIPv4Stack", "true");
 		new SimpleMessagePassing().start();	
 	}

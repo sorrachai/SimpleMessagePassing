@@ -7,8 +7,8 @@ public class LocalTraceCollector implements Serializable {
 	 * 
 	 */
 	private static final long serialVersionUID = -955345333561783777L;
-	public LocalTraceCollector() {
-		
+	public LocalTraceCollector(int numberOfMembers) {
+		this.numberOfMembers = numberOfMembers;
 		localTrace = new ArrayList<>();
 		hvcTrace = new ArrayList<>();
 		hvcSizeOverTime = new ArrayList<>();
@@ -16,9 +16,18 @@ public class LocalTraceCollector implements Serializable {
 		hvcSizeOverEpsilonNumEvents = new ArrayList<>();
         hvcSizeOverTimeDomain = new ArrayList<>();
         hvcSizeOverEpsilonDomain = new ArrayList<>();
-        
+        hvcSizeHistogram = new int[numberOfMembers+1];
+        for(int i=0;i<this.numberOfMembers;i++) {
+        	hvcSizeHistogram[i] = 0;
+        }
+        numSentMessages=0;
 	}
- 
+    public int getNumSentMessages() {
+    	return numSentMessages;
+    }
+	public int [] getHvcSizeHistogram() {
+		return hvcSizeHistogram;
+	}
 	public ArrayList<LocalEvent> getLocalTrace() {
 		return this.localTrace;
 	}
@@ -42,7 +51,15 @@ public class LocalTraceCollector implements Serializable {
 	}
 	public void pushLocalTrace(LocalEvent e) {
 		localTrace.add(e);
+		if(e.type==EventType.SEND_MESSAGE || e.type==EventType.RECEIVE_MESSAGE) {
+			int numEntries = ((HybridVectorClock)(e.localTimestamp)).getNumberActiveEntries();
+			hvcSizeHistogram[numEntries]++;
+		}
+		if(e.type==EventType.SEND_MESSAGE) {
+			numSentMessages++;
+		}
 	}
+	
 	public void fillHvcTrace(long initTime, long period, long stopTime) {
 		 if(localTrace.isEmpty()) return;
 		
@@ -128,16 +145,20 @@ public class LocalTraceCollector implements Serializable {
 		} 
 	 
 	}
+	
 	public void printLocalTrace() {
 		for(LocalEvent e : localTrace) {
 			e.localTimestamp.print();
 		}
 	}
+	private int numberOfMembers;
 	private ArrayList<LocalEvent> hvcTrace;
 	private ArrayList<LocalEvent> localTrace;
 	private ArrayList<Integer> hvcSizeOverTime;
 	private ArrayList<Long> hvcSizeOverTimeDomain;
 	private ArrayList<Integer> hvcSizeOverEpsilon;  
 	private ArrayList<Long> hvcSizeOverEpsilonDomain; 
-	private ArrayList<Integer> hvcSizeOverEpsilonNumEvents;  
+	private ArrayList<Integer> hvcSizeOverEpsilonNumEvents; 
+	private int [] hvcSizeHistogram;
+	private int numSentMessages;
 }

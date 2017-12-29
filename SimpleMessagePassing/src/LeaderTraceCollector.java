@@ -1,6 +1,7 @@
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList; 
+import java.text.DecimalFormat;
 
 public class LeaderTraceCollector {
 
@@ -24,6 +25,13 @@ public class LeaderTraceCollector {
 			globalHvcSizeOverEpsilonDomain.add(new ArrayList<>());
 			globalHvcSizeOverTimeDomain.add(new ArrayList<>());
 		}
+		
+		globalHvcSizeHistogram = new int[numProcesses];
+        for(int i=0;i<this.numProcesses;i++) {
+        	globalHvcSizeHistogram[i] = 0;
+        }
+        globalNumSentMessages=0;
+        
 	} 
 	
 	public void addHvcSizeOverEpsilon(LocalTraceCollector in,int from) {
@@ -32,7 +40,7 @@ public class LeaderTraceCollector {
 			globalHvcSizeOverEpsilonNumEvents.get(from).addAll(in.getHvcSizeOverEpsilonNumEvents());
 			globalHvcSizeOverEpsilonDomain.get(from).addAll(in.getHvcSizeOverEpsilonDomain());
 			
-			System.out.println("printing over time");
+			/*System.out.println("printing over time");
 			for(int n : in.getHvcSizeOverTime()) {
 				System.out.println(n);
 			}
@@ -40,7 +48,7 @@ public class LeaderTraceCollector {
 			for(int n : in.getHvcSizeOverEpsilon()) {
 				System.out.println(n); 
 			}
-			System.out.println("---");
+			System.out.println("---");*/
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -53,6 +61,11 @@ public class LeaderTraceCollector {
 			globalHvcTrace.get(from).addAll(in.getHvcTrace());
 			globalHvcSizeOverTime.get(from).addAll(in.getHvcSizeOverTime());
 			globalHvcSizeOverTimeDomain.get(from).addAll(in.getHvcSizeOverTimeDomain());
+			globalNumSentMessages+=in.getNumSentMessages();
+			int localHvcSizeHistogram [] = in.getHvcSizeHistogram();
+			for(int i=0;i<this.numProcesses;i++) {
+				globalHvcSizeHistogram[i] += localHvcSizeHistogram[i];
+			}
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -96,10 +109,31 @@ public class LeaderTraceCollector {
 		}
 	}
 	
-	
+ 	
+	public void writeHvcSizeHistogramToFile(String name) {
+		try {
+				int totalNumEvents = 0;
+				for(int i=1;i<this.numProcesses;i++) {
+					totalNumEvents += globalHvcSizeHistogram[i]; 
+				}
+				
+				 DecimalFormat percentage = new DecimalFormat("00.00");
+				 //System.out.println(percentage.format(10.239234)); 
+	    
+				FileWriter file = new FileWriter("./" + name,false);
+				for(int i=1;i<this.numProcesses;i++) {
+					file.write(Integer.toString(i)+" "+percentage.format(100.0 *(globalHvcSizeHistogram[i] / (double)totalNumEvents)));
+					file.write(System.getProperty( "line.separator" ));
+				}
+				file.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
  	
 	public void writeHvcSizeOverEpsilonToFile(String name) {
-			try {
+		try {
 			FileWriter file = new FileWriter("./" + name,false);
 			int traceLength = globalHvcSizeOverEpsilon.get(1).size();
 			
@@ -123,7 +157,11 @@ public class LeaderTraceCollector {
 			e.printStackTrace();
 		}
 	}
- 	
+	
+	public void printTotalNumSentMessages() {
+		System.out.println("Total messages is " + globalNumSentMessages);
+	}
+
 	private long initialL;
 	private int numProcesses;
 	private int globalTraceCounter;
@@ -134,4 +172,6 @@ public class LeaderTraceCollector {
 	private ArrayList<ArrayList<Long>> globalHvcSizeOverEpsilonDomain;
 	private ArrayList<ArrayList<Long>> globalHvcSizeOverTimeDomain;
 	private ArrayList<ArrayList<Integer>> globalHvcSizeOverEpsilonNumEvents;
+	private int [] globalHvcSizeHistogram;
+	private int globalNumSentMessages;
 }

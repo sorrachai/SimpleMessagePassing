@@ -3,5 +3,6 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="jgroups-4.0.8.Final.jar"/>
+	<classpathentry kind="lib" path="/Users/sorrachai/Git/SimpleHVCMessagePassing/SimpleHVCMessagePassing/SimpleMessagePassing/com.mysql.jdbc_5.1.5.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
