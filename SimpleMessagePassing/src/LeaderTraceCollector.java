@@ -111,27 +111,29 @@ public class LeaderTraceCollector {
 		}
 	}
 	
+	
+	public void writeHvcSizeHitogramSnapsnotToFile(String name) {
+		 
+		int [] frequency = new int[numProcesses];
+		int traceLength = globalHvcSizeOverTime.get(1).size();	
+		int totalFrequency =0;
+		for(int i=0;i<traceLength;i++) {
+			for(int j=1;j<numProcesses;j++) {
+				frequency[globalHvcSizeOverTime.get(j).get(i)]++;
+				totalFrequency++;
+			}
+		}
+		SimpleMessageUtilities.writeHistogramToFile(name, frequency, totalFrequency);
+		
+	}
  	
 	public void writeHvcSizeHistogramToFile(String name) {
-		try {
-				int totalNumEvents = 0;
-				for(int i=1;i<this.numProcesses;i++) {
-					totalNumEvents += globalHvcSizeHistogram[i]; 
-				}
-				
-				 DecimalFormat percentage = new DecimalFormat("00.00");
-				 //System.out.println(percentage.format(10.239234)); 
-	    
-				FileWriter file = new FileWriter("./" + name,false);
-				for(int i=1;i<this.numProcesses;i++) {
-					file.write(Integer.toString(i)+" "+percentage.format(100.0 *(globalHvcSizeHistogram[i] / (double)totalNumEvents)));
-					file.write(System.getProperty( "line.separator" ));
-				}
-				file.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		
+		int totalNumEvents = 0;
+		for(int i=1;i<this.numProcesses;i++) {
+			totalNumEvents += globalHvcSizeHistogram[i]; 
 		}
+		SimpleMessageUtilities.writeHistogramToFile(name, globalHvcSizeHistogram, totalNumEvents);
 	}
  	
 	public void writeHvcSizeOverEpsilonToFile(String name) {

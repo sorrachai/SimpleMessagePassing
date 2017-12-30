@@ -52,7 +52,7 @@ public class LocalTraceCollector implements Serializable {
 	}
 	public void pushLocalTrace(LocalEvent e) {
 		localTrace.add(e);
-		if(e.type==EventType.SEND_MESSAGE || e.type==EventType.RECEIVE_MESSAGE) {
+		if(e.type==EventType.SEND_MESSAGE || e.type==EventType.RECEIVE_MESSAGE || e.type == EventType.LOCAL_EVENT) {
 			int numEntries = ((HybridVectorClock)(e.localTimestamp)).getNumberActiveEntries();
 			hvcSizeHistogram[numEntries]++;
 		}

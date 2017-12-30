@@ -62,7 +62,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						//leaderTraceCollector.printGlobalTrace();
 						leaderTraceCollector.printTotalNumSentMessages();
 						leaderTraceCollector.writeHvcSizeOverTimeToFile("HvcOverTime.out");
-						leaderTraceCollector.writeHvcSizeHistogramToFile("HvcHistogram.out");
+						leaderTraceCollector.writeHvcSizeHitogramSnapsnotToFile("HvcHistogram.out");
 						if(parameters.runQuery) leaderTraceCollector.writeHvcSizeOverEpsilonToFile("HvcOverEpsilon.out");
 						state = LocalState.IDLE;
 					} 
