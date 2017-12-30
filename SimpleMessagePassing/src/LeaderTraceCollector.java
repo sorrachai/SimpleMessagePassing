@@ -87,12 +87,13 @@ public class LeaderTraceCollector {
 		}
 	}
 	
-	public void writeHvcSizeOverTimeToFile(String name)  {
+	
+	public void writeHvcSizeOverTimeAvgToFile(String name)  {
 
 		try {
 			FileWriter file = new FileWriter("./" + name,false);
 			int traceLength = globalHvcSizeOverTime.get(1).size();
-				
+			
 			for(int i=0;i<traceLength;i++) {
 				double sum = 0;
 			 
@@ -104,6 +105,29 @@ public class LeaderTraceCollector {
 				file.write((Duration.between(initialL, globalHvcSizeOverTimeDomain.get(1).get(i))).toMillis()+ " "+ Double.toString(sum));
 				file.write(System.getProperty( "line.separator" ));
 			}
+			
+			file.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public void writeHvcSizeOverTimeRawToFile(String name)  {
+
+		try {
+			FileWriter file = new FileWriter("./" + name,false);
+			int traceLength = globalHvcSizeOverTime.get(1).size();
+			
+			
+			for(int i=0;i<traceLength;i++) { 
+				file.write((Duration.between(initialL, globalHvcSizeOverTimeDomain.get(1).get(i))).toMillis()+ " ");
+				for(int j=1;j<numProcesses;j++) {
+					file.write(globalHvcSizeOverTime.get(j).get(i)+" ");
+				}
+				file.write(System.getProperty( "line.separator" ));
+			}
+			
 			file.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block

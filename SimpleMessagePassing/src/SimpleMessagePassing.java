@@ -24,7 +24,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	
 	public void viewAccepted(View new_view) {
 		System.out.println("** view: " + new_view);
-	}
+	} 
 	
 	public void receive(Message msg) {
 		
@@ -37,8 +37,8 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						localClock.timestampReceiveEvent(ts);
 						localClock.timestampReceiveEventHLC(ts);
 						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.RECEIVE_MESSAGE,localClock,Instant.now()));
-					//	System.out.print("Received: ");
-					//	localClock.print();
+						System.out.print("Received: ");
+						localClock.print();
 					}
 				break;
 				case CONFIG_START:
@@ -61,7 +61,8 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					if ( leaderTraceCollector.hasReceivedFromAllMembers() ) {
 						//leaderTraceCollector.printGlobalTrace();
 						leaderTraceCollector.printTotalNumSentMessages();
-						leaderTraceCollector.writeHvcSizeOverTimeToFile("HvcOverTime.out");
+						leaderTraceCollector.writeHvcSizeOverTimeRawToFile("HvcOverTimeRaw.out");
+						leaderTraceCollector.writeHvcSizeOverTimeAvgToFile("HvcOverTimeAvg.out");
 						leaderTraceCollector.writeHvcSizeHitogramSnapsnotToFile("HvcHistogram.out");
 						if(parameters.runQuery) leaderTraceCollector.writeHvcSizeOverEpsilonToFile("HvcOverEpsilon.out");
 						state = LocalState.IDLE;

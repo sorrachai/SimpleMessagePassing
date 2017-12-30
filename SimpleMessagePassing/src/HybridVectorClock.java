@@ -77,7 +77,7 @@ public class HybridVectorClock extends Timestamp {
 		entries[myIndex] = SimpleMessageUtilities.maxInstant(entries[myIndex].plusNanos(1),Instant.now());
 			
 		for(int i=0;i<entries.length;i++) {
-			entries[i] = SimpleMessageUtilities.maxInstant(entries[myIndex], fromMessage.entries[i]);
+			entries[i] = SimpleMessageUtilities.maxInstant(entries[i], fromMessage.entries[i]);
 			//entries[i] = Math.max(entries[i], fromMessage.entries[i]);
 		}
 	}
