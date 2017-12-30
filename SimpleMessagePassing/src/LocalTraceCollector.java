@@ -1,4 +1,5 @@
-import java.io.Serializable; 
+import java.io.Serializable;
+import java.time.Instant;
 import java.util.ArrayList; 
 
 public class LocalTraceCollector implements Serializable {
@@ -46,7 +47,7 @@ public class LocalTraceCollector implements Serializable {
 	public ArrayList<Long> getHvcSizeOverEpsilonDomain() {
 		return this.hvcSizeOverEpsilonDomain;
 	}
-	public ArrayList<Long> getHvcSizeOverTimeDomain() {
+	public ArrayList<Instant> getHvcSizeOverTimeDomain() {
 		return this.hvcSizeOverTimeDomain;
 	}
 	public void pushLocalTrace(LocalEvent e) {
@@ -60,20 +61,20 @@ public class LocalTraceCollector implements Serializable {
 		}
 	}
 	
-	public void fillHvcTrace(long initTime, long period, long stopTime) {
+	public void fillHvcTrace(Instant initTime, long period, Instant stopTime) {
 		 if(localTrace.isEmpty()) return;
 		
 		 int dummySize = 0;
 		 
-		 for(long tempTime =initTime; tempTime < stopTime; tempTime+=period ) {
+		 for(Instant tempTime =initTime; tempTime.isBefore(stopTime); tempTime= tempTime.plusMillis(period)) {
 			  dummySize++; 
-			  
 		 } 
-		 long [] dummyTrace = new long[dummySize];
-		 long tempTime = initTime;
+		 
+		 Instant [] dummyTrace = new Instant[dummySize];
+		 Instant tempTime = initTime;
 		 for(int i=0;i<dummySize;i++) {
 			  dummyTrace[i] = tempTime;
-			  tempTime+=period;
+			  tempTime= tempTime.plusMillis(period); 
 		 }
 		 
 		 int localTracePtr = 0;
@@ -86,11 +87,11 @@ public class LocalTraceCollector implements Serializable {
 				 break;
 			 }
 			 Timestamp thisTimestamp = localTrace.get(localTracePtr).localTimestamp; 
-			 long localL =  thisTimestamp.getL();
-			 long dummyL = dummyTrace[dummyTracePtr];
-			 if(dummyL > localL) {
+			 Instant localL =  thisTimestamp.getL();
+			 Instant dummyL = dummyTrace[dummyTracePtr];
+			 if(dummyL.isAfter(localL)) {
 				 localTracePtr++;
-			 } else if (dummyL < localL || (dummyL == localL && thisTimestamp.getC() != 0)) {
+			 } else if (dummyL.isBefore(localL) || (dummyL.equals(localL) && thisTimestamp.getC() != 0)) {
 				 int preLocalTracePtr = Math.max(localTracePtr-1,0);
 				 HybridVectorClock hvcDummy = new HybridVectorClock((HybridVectorClock)localTrace.get(preLocalTracePtr).localTimestamp);
 				 hvcDummy.timestampDummyEvent(dummyL);
@@ -155,7 +156,7 @@ public class LocalTraceCollector implements Serializable {
 	private ArrayList<LocalEvent> hvcTrace;
 	private ArrayList<LocalEvent> localTrace;
 	private ArrayList<Integer> hvcSizeOverTime;
-	private ArrayList<Long> hvcSizeOverTimeDomain;
+	private ArrayList<Instant> hvcSizeOverTimeDomain;
 	private ArrayList<Integer> hvcSizeOverEpsilon;  
 	private ArrayList<Long> hvcSizeOverEpsilonDomain; 
 	private ArrayList<Integer> hvcSizeOverEpsilonNumEvents; 

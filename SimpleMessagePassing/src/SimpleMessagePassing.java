@@ -8,6 +8,8 @@ import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask; 
 
+import java.time.Instant;
+import java.time.Duration;
 
 public class SimpleMessagePassing extends ReceiverAdapter {
 	
@@ -34,7 +36,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						Timestamp ts = receivedPacket.getLocalTimestamp();
 						localClock.timestampReceiveEvent(ts);
 						localClock.timestampReceiveEventHLC(ts);
-						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.RECEIVE_MESSAGE,localClock,System.currentTimeMillis()));
+						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.RECEIVE_MESSAGE,localClock,Instant.now()));
 					//	System.out.print("Received: ");
 					//	localClock.print();
 					}
@@ -129,7 +131,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	}
 	private void leaderSetup() {
 		setup();
-		leaderTraceCollector = new LeaderTraceCollector(parameters.numberOfMembers,parameters.startTime.getTime());
+		leaderTraceCollector = new LeaderTraceCollector(parameters.numberOfMembers,parameters.startTime.toInstant());
 	}
 	private void nonLeaderSetup() {
 		setup();
@@ -144,7 +146,8 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						+ "[long epsilon:ms] "
 						+ "[string uniform || zipf={double skew}]" 
 						+ "[string query: no || yes={epsilon_start:epsilon_interval:epsilon_stop}");
-		System.out.println("usage2: exit");
+		System.out.println("usage2: info");
+		System.out.println("usage3: exit");
 	}
 	private boolean correctFormat(String[] cmd) {
 		
@@ -173,13 +176,13 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		int durationMessage = (Integer.parseInt(cmd[1]))*1000;
 		int timeunitMessage = Integer.parseInt(cmd[2]);
 		//add 30 secs
-		Date startTimeMessage = new Date(System.currentTimeMillis()+ 30*1000);
+		Date startTimeMessage = Date.from(Instant.now().plusSeconds(30));
 		long period = Long.parseLong(cmd[4]);
 		long epsilon = Long.parseLong(cmd[5]);
 		String destinationDistributionString = cmd[6].toLowerCase().trim();
 		String queryString = cmd[7].toLowerCase().trim();
 		int numberOfMembers = channel.getView().getMembers().size();
-		long initialRandomSeed =  System.currentTimeMillis(); 
+		long initialRandomSeed =  Instant.now().toEpochMilli();
 		Packet packet = new Packet(MessageType.CONFIG_START,
 							new RunningParameters( 
 							    numberOfMembers,  
@@ -252,10 +255,10 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		 //the following loop is for non-leaders
 		try {
 			state = LocalState.IDLE;
-			long initTime = 0;
-			long elapsedTime = 0L; 
-			long initL = 0;
-			long lastL = 0;
+			Instant initTime = Instant.now();
+			Duration elapsedTime; //= initTime; 
+			Instant initL = initTime;
+			Instant lastL = initTime;
 			//local state may be changed upon receiving a message
 			while(true) {
 				switch(state) {
@@ -267,10 +270,10 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 				case SETUP: 
 					 nonLeaderSetup(); 
 					 System.out.println("SETUP READY: My index is " + Integer.toString(myIndexOfTheGroup));
-					 initL = parameters.startTime.getTime();
-					 lastL = initL+parameters.duration;
+					 initL = parameters.startTime.toInstant();
+					 lastL = initL.plusMillis(parameters.duration);
 					 waitUntil(parameters.startTime);
-					 initTime  = System.currentTimeMillis();
+					 initTime  = Instant.now();
 					 localClock.timestampLocalEvent();
 					 localClock.timestampLocalEventHLC();
 					 //initL = localClock.getL();
@@ -286,12 +289,12 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						localClock.timestampSendEventHLC();
 						Packet packet = new Packet(MessageType.NORMAL_RECEIVE,localClock);
 						channel.send(members.get(destination),packet);
-						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.SEND_MESSAGE, localClock, System.currentTimeMillis()));
+						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.SEND_MESSAGE, localClock, Instant.now()));
 						//System.out.print("Send to "+  Integer.toString(destination)+ ": ");
 						//localClock.print();
 					}
-					 elapsedTime =  System.currentTimeMillis() - initTime;
-					 if(elapsedTime > parameters.duration) state = LocalState.FINISH;
+					 elapsedTime =  Duration.between(initTime, Instant.now());//Instant.now() - initTime;
+					 if(elapsedTime.toMillis() > parameters.duration) state = LocalState.FINISH;
 					 continue;
 				case FINISH: 
 					localClock.timestampLocalEvent();
@@ -370,7 +373,8 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		new SimpleMessagePassing().start();	
 	}
 	
-	Timestamp localClock;
+	Timestamp localClock; 
+	
 	JChannel channel;
 	String userName=System.getProperty("user.name", "n/a");
 	

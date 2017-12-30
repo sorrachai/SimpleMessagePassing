@@ -2,10 +2,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList; 
 import java.text.DecimalFormat;
+import java.time.Duration;
+import java.time.Instant;
 
 public class LeaderTraceCollector {
 
-	public LeaderTraceCollector(int numProcesses, long initialL) { 
+	public LeaderTraceCollector(int numProcesses, Instant initialL) { 
 		globalTrace = new ArrayList<>();
 		globalHvcTrace = new ArrayList<>(); 
 		globalHvcSizeOverEpsilon = new ArrayList<>();
@@ -99,7 +101,7 @@ public class LeaderTraceCollector {
 			
 				}
 				sum = sum/(numProcesses-1);
-				file.write((globalHvcSizeOverTimeDomain.get(1).get(i)-initialL)+ " "+ Double.toString(sum));
+				file.write((Duration.between(initialL, globalHvcSizeOverTimeDomain.get(1).get(i))).toMillis()+ " "+ Double.toString(sum));
 				file.write(System.getProperty( "line.separator" ));
 			}
 			file.close();
@@ -162,7 +164,7 @@ public class LeaderTraceCollector {
 		System.out.println("Total messages is " + globalNumSentMessages);
 	}
 
-	private long initialL;
+	private Instant initialL;
 	private int numProcesses;
 	private int globalTraceCounter;
 	private ArrayList<ArrayList<LocalEvent>> globalTrace;
@@ -170,7 +172,7 @@ public class LeaderTraceCollector {
 	private ArrayList<ArrayList<Integer>> globalHvcSizeOverTime;
 	private ArrayList<ArrayList<Integer>> globalHvcSizeOverEpsilon;
 	private ArrayList<ArrayList<Long>> globalHvcSizeOverEpsilonDomain;
-	private ArrayList<ArrayList<Long>> globalHvcSizeOverTimeDomain;
+	private ArrayList<ArrayList<Instant>> globalHvcSizeOverTimeDomain;
 	private ArrayList<ArrayList<Integer>> globalHvcSizeOverEpsilonNumEvents;
 	private int [] globalHvcSizeHistogram;
 	private int globalNumSentMessages;
