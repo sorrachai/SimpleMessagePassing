@@ -9,7 +9,16 @@ public class Packet implements java.io.Serializable {
 	private LocalTraceCollector allLocalEvents;
 	private int indexFrom;
 	private RunningParameters parameters; 
+	private double ntpOffset;
 	  
+	  public Packet(MessageType type, double ntpOffset) {
+		  if(type == MessageType.REPLY_NTP) {
+			  this.type = type;
+			  this.ntpOffset = ntpOffset;
+		  } else {
+			  this.type = MessageType.IGNORE;
+		  }
+	  }
 	  public Packet(MessageType type, Timestamp localTimestamp) {
 		  if(type == MessageType.NORMAL_RECEIVE) {
 			  this.type = type;
@@ -36,11 +45,10 @@ public class Packet implements java.io.Serializable {
 		  }
 	  }
 	  public Packet(MessageType type) {
-		  if(type==MessageType.CONFIG_STOP) {
-			  this.type = type;  
-		  } else {
-			  this.type = MessageType.IGNORE;
-		  }
+		   this.type = type;   
+	  }
+	  public double getNtpOffset() { 
+		  return ntpOffset;
 	  }
 	  public RunningParameters getRunningParameter() {
 		  return parameters;

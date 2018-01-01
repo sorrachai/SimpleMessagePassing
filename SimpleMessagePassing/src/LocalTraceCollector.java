@@ -19,7 +19,7 @@ public class LocalTraceCollector implements Serializable {
         hvcSizeOverEpsilonDomain = new ArrayList<>();
         hvcSizeHistogram = new int[numberOfMembers+1];
         for(int i=0;i<this.numberOfMembers;i++) {
-        	hvcSizeHistogram[i] = 0;
+        		hvcSizeHistogram[i] = 0;
         }
         numSentMessages=0;
 	}

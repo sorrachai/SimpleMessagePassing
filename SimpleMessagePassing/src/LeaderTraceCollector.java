@@ -1,7 +1,6 @@
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList; 
-import java.text.DecimalFormat;
+import java.util.ArrayList;  
 import java.time.Duration;
 import java.time.Instant;
 
@@ -15,6 +14,8 @@ public class LeaderTraceCollector {
 		globalHvcSizeOverEpsilonNumEvents = new ArrayList<>();
 		globalHvcSizeOverEpsilonDomain = new ArrayList<>();
 		globalHvcSizeOverTimeDomain = new ArrayList<>();
+		 
+		
 		globalTraceCounter=0;
 		this.numProcesses = numProcesses;
 		this.initialL = initialL;
@@ -36,6 +37,7 @@ public class LeaderTraceCollector {
         
 	} 
 	
+ 
 	public void addHvcSizeOverEpsilon(LocalTraceCollector in,int from) {
 		try {  
 			globalHvcSizeOverEpsilon.get(from).addAll(in.getHvcSizeOverEpsilon());
@@ -202,4 +204,6 @@ public class LeaderTraceCollector {
 	private ArrayList<ArrayList<Integer>> globalHvcSizeOverEpsilonNumEvents;
 	private int [] globalHvcSizeHistogram;
 	private int globalNumSentMessages;
+	
+
 }

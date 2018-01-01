@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="lib" path="com.mysql.jdbc_5.1.5.jar"/>
 	<classpathentry kind="lib" path="jgroups-4.0.9.Final.jar"/>
+	<classpathentry kind="lib" path="com.mysql.jdbc_5.1.5.jar"/>
+	<classpathentry kind="lib" path="mssql-jdbc-6.3.6-SNAPSHOT.jre9-preview.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

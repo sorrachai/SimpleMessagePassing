@@ -31,7 +31,7 @@ public class HybridVectorClock extends Timestamp {
 		this.epsilon = epsilon;
 		Instant now = Instant.now();
 		for(int i=0;i<numProcesses;i++) {
-			entries[i]= now.minusMillis(epsilon);
+			entries[i]= now.minusNanos(epsilon*1000);
 		}
 		entries[myIndex] = now;
 		
@@ -40,7 +40,7 @@ public class HybridVectorClock extends Timestamp {
 		//process 0 is the leader which is not participating message exchanges.
 		int num_inactive =1;
 		for(int i=1;i<numProcesses;i++) { 
-			Instant plusEps = entries[i].plusMillis(epsilon);
+			Instant plusEps = entries[i].plusNanos(epsilon*1000);
 			if(entries[myIndex].isAfter(plusEps) ||  entries[myIndex].equals(plusEps)) {
 				num_inactive++;
 			}
@@ -51,7 +51,7 @@ public class HybridVectorClock extends Timestamp {
 	public int getNumberActiveEntries(long epsilon) {
 		int num_inactive =1;
 		for(int i=1;i<numProcesses;i++) { 
-			Instant plusEps = entries[i].plusMillis(epsilon);
+			Instant plusEps = entries[i].plusNanos(epsilon*1000);
 			if(entries[myIndex].isAfter(plusEps) ||  entries[myIndex].equals(plusEps)) {
 				num_inactive++;
 			} 

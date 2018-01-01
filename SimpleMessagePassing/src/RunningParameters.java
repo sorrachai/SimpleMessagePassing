@@ -11,7 +11,7 @@ public class RunningParameters implements Serializable{
 	private static final long serialVersionUID = 2862398035679017705L; 
 	
 	public final double unicastProbability; 
-	public final long timeUnitMillisec;
+	public final long timeUnitMicrosec;
 	public final long duration;
 	public final Date startTime;
 	public final long HvcCollectingPeriod;
@@ -32,7 +32,7 @@ public class RunningParameters implements Serializable{
 	public RunningParameters( int numberOfMembers,
 							  long initialRandomSeed,
 							  double unicastProbability,
-							  int timeUnitMillisec,
+							  int timeUnitMicrosec,
 							  long duration,
 							  Date startTime,
 							  long HVCCollectingPeriod,
@@ -42,7 +42,7 @@ public class RunningParameters implements Serializable{
 							  ) {
 		this.numberOfMembers = numberOfMembers;
 		this.unicastProbability = unicastProbability;
-		this.timeUnitMillisec = timeUnitMillisec;
+		this.timeUnitMicrosec = timeUnitMicrosec;
 		this.duration = duration;
 		this.startTime = startTime;
 		this.HvcCollectingPeriod = HVCCollectingPeriod;
@@ -56,7 +56,7 @@ public class RunningParameters implements Serializable{
   public RunningParameters(RunningParameters p) {
 	   this.numberOfMembers = p.numberOfMembers;
 	   this.unicastProbability = p.unicastProbability;
-	   this.timeUnitMillisec = p.timeUnitMillisec;
+	   this.timeUnitMicrosec = p.timeUnitMicrosec;
 	   this.duration = p.duration;
 	   this.startTime = p.startTime;
 	   this.HvcCollectingPeriod = p.HvcCollectingPeriod;

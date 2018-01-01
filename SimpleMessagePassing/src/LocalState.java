@@ -4,5 +4,7 @@ public enum LocalState {
 	SETUP,
 	EXECUTE,
 	FINISH,
+	GET_INTERNET_NTP,
+	GET_AMAZON_NTP,
 	STOP
 }

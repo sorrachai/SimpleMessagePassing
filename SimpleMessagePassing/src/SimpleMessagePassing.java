@@ -3,7 +3,8 @@ import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View; 
 
-import java.io.*; 
+import java.io.*;
+import java.util.ArrayList;
 import java.util.Date; 
 import java.util.Timer;
 import java.util.TimerTask; 
@@ -68,6 +69,27 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						state = LocalState.IDLE;
 					} 
 				break;
+				case REQUEST_INTERNET_NTP: 
+					state = LocalState.GET_INTERNET_NTP;
+				break;
+				
+				case REQUEST_AMAZON_NTP: 
+					state = LocalState.GET_AMAZON_NTP;
+				break;
+				case REPLY_NTP:
+					double localNtpOffset = receivedPacket.getNtpOffset();
+					globalNtpOffset.add(localNtpOffset);
+					if(globalNtpOffset.size()==numWorkers) {
+						System.out.println("\n -------- listing offset -------- ");
+						for(double d : globalNtpOffset) {
+							System.out.print(d + " ");
+						}
+						System.out.println("\nAverage Offset is : " + SimpleMessageUtilities.average(globalNtpOffset));
+						state = LocalState.IDLE;
+						System.out.println("---------------- ");
+					}
+				break;
+				
 				case IGNORE: 
 					System.out.println("Warning: received IGNORE message");
 				default:
@@ -141,13 +163,13 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	private void printInstruction() {
 		System.out.println("usage: start "
 						+ "[int duration:secs] "
-						+ "[int timeunit:ms] "
+						+ "[int timeunit:micro secs] "
 						+ "[unicast_probability:0-1] "
 						+ "[long hvc_collecting_peroid:ms] "
-						+ "[long epsilon:ms] "
+						+ "[long epsilon:micro secs] "
 						+ "[string uniform || zipf={double skew}]" 
 						+ "[string query: no || yes={epsilon_start:epsilon_interval:epsilon_stop}");
-		System.out.println("usage2: info");
+		System.out.println("usage2: info num_nodes || ntp_internet (ms) || ntp_amazon (s)");
 		System.out.println("usage3: exit");
 	}
 	private boolean correctFormat(String[] cmd) {
@@ -172,6 +194,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		}
 		return false;
 	}
+	
 	private void broadcastCommand(String [] cmd)  throws Exception {
 		double unicastProbabilityMessage = Double.parseDouble(cmd[3]);
 		int durationMessage = (Integer.parseInt(cmd[1]))*1000;
@@ -211,8 +234,8 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		System.out.println("--");
 	}
 		
-	private void waitUntilReceivedAllLocalStates() throws Exception {
-		while(state == LocalState.SETUP ) {
+	private void waitUntilReceivedAllLocalStates(LocalState s) throws Exception {
+		while(state == s) {
 			Thread.sleep(1000);
 			System.out.print(".");
 		} 
@@ -230,26 +253,56 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 			if(line.startsWith("start")) {
 				String[] command = line.split(" ");
 				if(!correctFormat(command)) {
-					printInstruction();
+					//printInstruction();
 					continue;
 				}
 				broadcastCommand(command);
 				while(state!=LocalState.SETUP);
 				leaderSetup();		
-				waitUntilReceivedAllLocalStates(); 
+				waitUntilReceivedAllLocalStates(LocalState.SETUP); 
 				System.out.println("The execution has been completed.");
 			}
 			else if(line.startsWith("info")) {
-				System.out.println("Number of nodes including the leader is " +channel.getView().getMembers().size());
+				
+				//System.out.println("usage2: info num_nodes || ntp_internet || ntp_amazon");
+				String[] command = line.split(" ");
+				boolean length2= command.length == 2;
+				if(!length2) { 
+					// printInstruction();
+					 continue;
+				}
+				if(command[1].startsWith("num_node")) {
+					System.out.println("Number of nodes including leader is " + channel.getView().getMembers().size());
+					continue;
+				}
+				this.numWorkers  = channel.getView().getMembers().size()-1;
+				System.out.println("Number of worker nodes is " + numWorkers);
+				globalNtpOffset = new ArrayList<>();
+				Packet packet;  
+				if(command[1].startsWith("ntp_internet")) {
+					packet = new Packet(MessageType.REQUEST_INTERNET_NTP);
+					channel.send(null,packet);
+					state = LocalState.GET_INTERNET_NTP;
+				
+				}
+				else if(command[1].startsWith("ntp_amazon")) {
+					packet = new Packet(MessageType.REQUEST_AMAZON_NTP);
+					channel.send(null,packet);
+					state = LocalState.GET_AMAZON_NTP;
+				}
+				else {
+					//printInstruction();
+					continue;
+				} 
+				while(state!=LocalState.IDLE) {
+					Thread.sleep(10); 
+				}
 			}
 			else if (line.startsWith("quit") || line.startsWith("exit")) {
 				Packet packet = new Packet(MessageType.CONFIG_STOP);
 				channel.send(null,packet);
 				return;
 			}
-			else {
-				printInstruction();
-			} 
 		}
 	}
 	private void nonLeaderRoutine() {
@@ -268,11 +321,26 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					System.out.print(".");
 					//waiting for leader's command to run or to stop the programs.
 					continue;
+				case GET_INTERNET_NTP:
+				case GET_AMAZON_NTP: 
+					 this.members = channel.getView().getMembers();  
+					 double ntpOffset; 
+					 Packet packetinfo;
+					 if(state==LocalState.GET_AMAZON_NTP) {
+						 ntpOffset = SimpleMessageUtilities.getAmazonNtpOffset();
+					 } else {
+						 ntpOffset = SimpleMessageUtilities.getInternetNtpOffset();
+					 }
+					 packetinfo = new Packet(MessageType.REPLY_NTP, ntpOffset);
+					 channel.send(members.get(0),packetinfo);
+					 state = LocalState.IDLE;
+					 continue;
+				 
 				case SETUP: 
 					 nonLeaderSetup(); 
 					 System.out.println("SETUP READY: My index is " + Integer.toString(myIndexOfTheGroup));
 					 initL = parameters.startTime.toInstant();
-					 lastL = initL.plusMillis(parameters.duration);
+					 lastL = initL.plusSeconds(parameters.duration);
 					 waitUntil(parameters.startTime);
 					 initTime  = Instant.now();
 					 localClock.timestampLocalEvent();
@@ -282,7 +350,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					 state = LocalState.EXECUTE;
 					 continue;
 				case EXECUTE: 
-					Thread.sleep(parameters.timeUnitMillisec);
+					SimpleMessageUtilities.busyWaitMicros(parameters.timeUnitMicrosec);
 					boolean sendMessage = parameters.nextDouble() <= parameters.unicastProbability;
 					if(sendMessage) {
 						int destination = parameters.nextDestination();
@@ -379,6 +447,9 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	JChannel channel;
 	String userName=System.getProperty("user.name", "n/a");
 	
+	private int numWorkers;
+	private ArrayList<Double> globalNtpOffset;
+		
 	private int myIndexOfTheGroup; 
 	private LocalState state; 
 	private java.util.List<org.jgroups.Address> members;
