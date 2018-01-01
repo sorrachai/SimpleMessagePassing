@@ -61,8 +61,8 @@ public class LeaderTraceCollector {
 		try {
 			globalTraceCounter++;
 			System.out.println(globalTraceCounter);
-			globalTrace.get(from).addAll(in.getLocalTrace()); 
-			globalHvcTrace.get(from).addAll(in.getHvcTrace());
+			//globalTrace.get(from).addAll(in.getLocalTrace()); 
+			//globalHvcTrace.get(from).addAll(in.getHvcTrace());
 			globalHvcSizeOverTime.get(from).addAll(in.getHvcSizeOverTime());
 			globalHvcSizeOverTimeDomain.get(from).addAll(in.getHvcSizeOverTimeDomain());
 			globalNumSentMessages+=in.getNumSentMessages();

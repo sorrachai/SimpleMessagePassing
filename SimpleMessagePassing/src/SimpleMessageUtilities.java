@@ -6,6 +6,9 @@ import java.text.DecimalFormat;
 import java.time.Instant;
 import java.util.ArrayList;
 
+import org.jgroups.Address;
+import org.jgroups.Message;
+
 public class SimpleMessageUtilities {
 
 	public static Instant maxInstant(Instant a, Instant b) {
@@ -39,7 +42,7 @@ public class SimpleMessageUtilities {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-			
+			 
 	}
 	public static double average(ArrayList<Double> in) {
 		double sum = 0;
@@ -48,12 +51,24 @@ public class SimpleMessageUtilities {
 		}
 		return sum/in.size();
 	}
+	public static double max(ArrayList<Double> in) {
+		double m = Math.abs(in.get(0));
+		
+		for(double d : in) {
+			m = Math.max(m, Math.abs(d));
+		}
+		return m;
+	}
 	public static double getInternetNtpOffset() {
 		return runCommandReturnDouble("ntpq -c kerninfo | awk \'/offset/ { print $3 }\'"); 
 	}
 	
 	public static double getAmazonNtpOffset() {
 		return runCommandReturnDouble("chronyc tracking | awk \'/RMS offset/ { print $4 }\'");
+	}
+	public static Message getOobMessage(Address dest, Packet p) {
+		//Get out-of-band message which no longer guarantee FIFO delivery
+		return new Message(dest,p).setFlag(Message.Flag.OOB,	Message.Flag.DONT_BUNDLE);		
 	}
 	private static double runCommandReturnDouble(String cmd) {
 	//credit: https://stackoverflow.com/a/6441483/2959347

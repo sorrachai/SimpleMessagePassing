@@ -18,13 +18,13 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	private void start() throws Exception {
 		//channel=new JChannel("simpleMessageJgroupConfig.xml").setReceiver(this);
 		channel=new JChannel().setReceiver(this);
-        channel.connect("Cluster");
+        channel.connect("Cluster"); 
         localComputation();
         channel.close();
     }
 	
 	public void viewAccepted(View new_view) {
-		System.out.println("** view: " + new_view);
+	//	System.out.println("** view: " + new_view);
 	} 
 	
 	public void receive(Message msg) {
@@ -35,11 +35,13 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 				case NORMAL_RECEIVE: 
 					if(state==LocalState.EXECUTE) {
 						Timestamp ts = receivedPacket.getLocalTimestamp();
-						localClock.timestampReceiveEvent(ts);
-						localClock.timestampReceiveEventHLC(ts);
+						synchronized(localClock) {
+							localClock.timestampReceiveEvent(ts);
+							localClock.timestampReceiveEventHLC(ts);
+						}
 						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.RECEIVE_MESSAGE,localClock,Instant.now()));
-						System.out.print("Received: ");
-						localClock.print();
+						//System.out.print("Received: ");
+						//localClock.print();
 					}
 				break;
 				case CONFIG_START:
@@ -54,11 +56,12 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					System.out.println("Received CONFIG_FINISH");
 					LocalTraceCollector receivedLocalTrace = receivedPacket.getAllLocalEvents();
 					int from = receivedPacket.getIndexFrom();
-					if(parameters.runQuery) {
-						leaderTraceCollector.addHvcSizeOverEpsilon(receivedLocalTrace, from);
+					synchronized(leaderTraceCollector) {
+						if(parameters.runQuery) {
+							leaderTraceCollector.addHvcSizeOverEpsilon(receivedLocalTrace, from);
+						}
+						leaderTraceCollector.addTraceFrom(receivedLocalTrace,from);
 					}
-					leaderTraceCollector.addTraceFrom(receivedLocalTrace,from);
-					
 					if ( leaderTraceCollector.hasReceivedFromAllMembers() ) {
 						//leaderTraceCollector.printGlobalTrace();
 						leaderTraceCollector.printTotalNumSentMessages();
@@ -85,11 +88,14 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 							System.out.print(d + " ");
 						}
 						System.out.println("\nAverage Offset is : " + SimpleMessageUtilities.average(globalNtpOffset));
+						System.out.println("\nMax Offset is : " + SimpleMessageUtilities.max(globalNtpOffset));
 						state = LocalState.IDLE;
 						System.out.println("---------------- ");
 					}
 				break;
-				
+				case PING:
+					System.out.println(".");
+				break;
 				case IGNORE: 
 					System.out.println("Warning: received IGNORE message");
 				default:
@@ -199,14 +205,14 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		double unicastProbabilityMessage = Double.parseDouble(cmd[3]);
 		int durationMessage = (Integer.parseInt(cmd[1]))*1000;
 		int timeunitMessage = Integer.parseInt(cmd[2]);
-		//add 30 secs
-		Date startTimeMessage = Date.from(Instant.now().plusSeconds(30));
+		Date startTimeMessage = Date.from(Instant.now().plusSeconds(10));
 		long period = Long.parseLong(cmd[4]);
 		long epsilon = Long.parseLong(cmd[5]);
 		String destinationDistributionString = cmd[6].toLowerCase().trim();
 		String queryString = cmd[7].toLowerCase().trim();
 		int numberOfMembers = channel.getView().getMembers().size();
-		long initialRandomSeed =  Instant.now().toEpochMilli();
+		//need seed to be less than 48 bits 
+		long initialRandomSeed =  Instant.now().toEpochMilli()%1000003; 
 		Packet packet = new Packet(MessageType.CONFIG_START,
 							new RunningParameters( 
 							    numberOfMembers,  
@@ -281,6 +287,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 				Packet packet;  
 				if(command[1].startsWith("ntp_internet")) {
 					packet = new Packet(MessageType.REQUEST_INTERNET_NTP);
+					//channel.send(SimpleMessageUtilities.getOobMessage(null, packet));
 					channel.send(null,packet);
 					state = LocalState.GET_INTERNET_NTP;
 				
@@ -319,6 +326,13 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 				case IDLE:  
 					Thread.sleep(1000); 
 					System.out.print(".");
+					/*this.members = channel.getView().getMembers();  
+					this.myIndexOfTheGroup = indexOfMyAddress(members); 
+					if(myIndexOfTheGroup==1) {
+						//ping leader to let ssh connection stay alive
+						 Packet pingpacket = new Packet(MessageType.PING);
+						 channel.send(members.get(0),pingpacket);
+					}*/
 					//waiting for leader's command to run or to stop the programs.
 					continue;
 				case GET_INTERNET_NTP:
@@ -357,8 +371,10 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						localClock.timestampSendEvent();
 						localClock.timestampSendEventHLC();
 						Packet packet = new Packet(MessageType.NORMAL_RECEIVE,localClock);
-						channel.send(members.get(destination),packet);
+					//	channel.send(members.get(destination),packet);
+						channel.send(SimpleMessageUtilities.getOobMessage(members.get(destination), packet));
 						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.SEND_MESSAGE, localClock, Instant.now()));
+					
 						//System.out.print("Send to "+  Integer.toString(destination)+ ": ");
 						//localClock.print();
 					}
@@ -375,7 +391,10 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						localTraceCollector.computeHvcSizeOverEpsilon(parameters.epsilonStart, parameters.epsilonInterval, parameters.epsilonStop);
 					}
 					Packet packet = new Packet(MessageType.CONFIG_FINISH,localTraceCollector, myIndexOfTheGroup);
+				//	System.out.println("Sending back");
+					Thread.sleep(3000); 
 					channel.send(members.get(0),packet);
+				//	System.out.println("DONE");
 					state = LocalState.IDLE; 
 					continue;
 				case STOP: 

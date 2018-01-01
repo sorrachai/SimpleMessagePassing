@@ -24,6 +24,7 @@ public class LocalTraceCollector implements Serializable {
         numSentMessages=0;
 	}
     public int getNumSentMessages() {
+   // 	System.out.println("NumSentMessages = " + numSentMessages);
     	return numSentMessages;
     }
 	public int [] getHvcSizeHistogram() {
