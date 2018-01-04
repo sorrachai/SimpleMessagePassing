@@ -3,22 +3,25 @@ import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View; 
 
-import java.io.*;
 import java.util.ArrayList;
-import java.util.Date; 
-import java.util.Timer;
-import java.util.TimerTask; 
+import java.util.Date;  
 
 import java.time.Instant;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.time.Duration;
 
 public class SimpleMessagePassing extends ReceiverAdapter {
+	   
+	 
 	
 	@SuppressWarnings("resource")
 	private void start() throws Exception {
-		//channel=new JChannel("simpleMessageJgroupConfig.xml").setReceiver(this);
-		channel=new JChannel().setReceiver(this);
+		//channel=new JChannel("tcp.xml").setReceiver(this);
+		channel=new JChannel("simpleMessageJgroupConfig.xml").setReceiver(this);
+		//channel=new JChannel().setReceiver(this);
         channel.connect("Cluster"); 
+        
         localComputation();
         channel.close();
     }
@@ -26,34 +29,67 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	public void viewAccepted(View new_view) {
 	//	System.out.println("** view: " + new_view);
 	} 
-	
+									
 	public void receive(Message msg) {
 		
 		try {
 			Packet receivedPacket = (Packet) (msg.getObject());
 			switch(receivedPacket.getMessageType()) {
+				case START_LATENCY: 
+					localStatisticsCollector = new LocalStatisticsCollector();
+					localSetup();
+					state = LocalState.GET_LATENCY;
+					break;
+			 	case PING_LATENCY: 
+		 			Packet pong = new Packet(MessageType.PONG_LATENCY,receivedPacket.getTime()); 
+		 			int receivedFrom = receivedPacket.getIndexFrom();
+		 			channel.send(SimpleMessageUtilities.getOobMessage(members.get(receivedFrom), pong));
+			 		break;
+			 	case PONG_LATENCY:
+		 			Duration RTT = Duration.between(receivedPacket.getTime(), Instant.now()); 
+		 			try {
+		 				long durationMicrosec = Math.round(RTT.toNanos()/(2*1000.0));
+			 			synchronized(localStatisticsCollector) {
+			 				localStatisticsCollector.updateLocalRTTs(durationMicrosec);
+			 			} 
+		 			} catch(Exception e) {
+		 				e.printStackTrace();
+		 			}
+	
+			 		break;
+			 	case COLLECT_LATENCY: 
+			 		LocalStatisticsCollector receivedLocalStatistics = receivedPacket.getLocalStatisticsCollector();
+			 		synchronized(localStatisticsCollector) {
+			 			localStatisticsCollector.pushLocalStatistics(receivedLocalStatistics);
+			 		}
+			 		if(localStatisticsCollector.numReceivedEqualTo(numWorkers)) { 
+			 			localStatisticsCollector.reportStatistics();
+			 			System.out.println("packet size = " + SimpleMessageUtilities.getOobMessage(members.get(0), new Packet(MessageType.PONG_LATENCY,localClock)).size() + " Bytes");
+			 			state = LocalState.IDLE;
+			 		}
+			 		break;
 				case NORMAL_RECEIVE: 
-					if(state==LocalState.EXECUTE) {
+					if(state==LocalState.EXECUTE ) {
 						Timestamp ts = receivedPacket.getLocalTimestamp();
 						synchronized(localClock) {
 							localClock.timestampReceiveEvent(ts);
 							localClock.timestampReceiveEventHLC(ts);
 						}
-						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.RECEIVE_MESSAGE,localClock,Instant.now()));
 						//System.out.print("Received: ");
 						//localClock.print();
+						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.RECEIVE_MESSAGE,localClock,Instant.now()));
 					}
-				break;
+					break;
+				
 				case CONFIG_START:
 					parameters = new RunningParameters(receivedPacket.getRunningParameter());
-					
 					state = LocalState.SETUP;
-				break;
+					break;
 				case CONFIG_STOP:
 					state = LocalState.STOP;
-				break;
+					break;
 				case CONFIG_FINISH: 
-					System.out.println("Received CONFIG_FINISH");
+					System.out.print("Received CONFIG_FINISH ");
 					LocalTraceCollector receivedLocalTrace = receivedPacket.getAllLocalEvents();
 					int from = receivedPacket.getIndexFrom();
 					synchronized(leaderTraceCollector) {
@@ -64,21 +100,21 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					}
 					if ( leaderTraceCollector.hasReceivedFromAllMembers() ) {
 						//leaderTraceCollector.printGlobalTrace();
-						leaderTraceCollector.printTotalNumSentMessages();
+						leaderTraceCollector.printStatistics(parameters);
 						leaderTraceCollector.writeHvcSizeOverTimeRawToFile("HvcOverTimeRaw.out");
 						leaderTraceCollector.writeHvcSizeOverTimeAvgToFile("HvcOverTimeAvg.out");
 						leaderTraceCollector.writeHvcSizeHitogramSnapsnotToFile("HvcHistogram.out");
 						if(parameters.runQuery) leaderTraceCollector.writeHvcSizeOverEpsilonToFile("HvcOverEpsilon.out");
 						state = LocalState.IDLE;
 					} 
-				break;
+					break;
 				case REQUEST_INTERNET_NTP: 
 					state = LocalState.GET_INTERNET_NTP;
-				break;
+					break;
 				
 				case REQUEST_AMAZON_NTP: 
 					state = LocalState.GET_AMAZON_NTP;
-				break;
+					break;
 				case REPLY_NTP:
 					double localNtpOffset = receivedPacket.getNtpOffset();
 					globalNtpOffset.add(localNtpOffset);
@@ -92,10 +128,10 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						state = LocalState.IDLE;
 						System.out.println("---------------- ");
 					}
-				break;
+					break;
 				case PING:
-					System.out.println(".");
-				break;
+					System.out.println("");
+					break;
 				case IGNORE: 
 					System.out.println("Warning: received IGNORE message");
 				default:
@@ -111,7 +147,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	    int i =0;
 	    org.jgroups.Address myAddress = (org.jgroups.Address) channel.getAddress();
 		for(org.jgroups.Address addr : members) {
-			System.out.println(addr + " vs. " + myAddress);
+			//System.out.println(addr + " vs. " + myAddress);
 			if(addr.toString()!=myAddress.toString()) {
 				i++;
 			}
@@ -121,49 +157,25 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		}
 		return i;
 	}
-	public static boolean isNumeric(String str)  {  
-		try  {  
-			Double.parseDouble(str);  
-		}  
-		catch(NumberFormatException nfe)  {  
-			return false;  
-		}  
-		return true;  
-	}
+
 	
 	
-	private void waitUntil(Date date) {
-		//https://www.java-forums.org/new-java/11785-sleep-until-certian-time-day.html
-        final Object o = new Object();
-        TimerTask tt = new TimerTask() {
-            public void run() {
-                synchronized (o) {
-                    o.notify();
-                }
-            }
-        };
-        Timer t = new Timer();
-        t.schedule(tt, date);
-        synchronized(o) {
-            try {
-                o.wait();
-            } catch (InterruptedException ie) {}
-        }
-        t.cancel();
-        t.purge();
-    }
-	private void setup(){
+	private void localSetup(){
 		this.members = channel.getView().getMembers();  
 		this.myIndexOfTheGroup = indexOfMyAddress(members); 
-	 	parameters.setRandom(myIndexOfTheGroup);
-		this.localClock = new HybridVectorClock(parameters.numberOfMembers, myIndexOfTheGroup,parameters.globalEpsilon);
+		this.numWorkers = this.members.size()-1;
+		this.localClock = new HybridVectorClock(this.members.size(), myIndexOfTheGroup, 1);
 	}
 	private void leaderSetup() {
-		setup();
+		localSetup();
+		this.localClock = new HybridVectorClock(this.members.size(), myIndexOfTheGroup,parameters.globalEpsilon);
+		parameters.setRandom(myIndexOfTheGroup);
 		leaderTraceCollector = new LeaderTraceCollector(parameters.numberOfMembers,parameters.startTime.toInstant());
 	}
 	private void nonLeaderSetup() {
-		setup();
+		localSetup();
+		this.localClock = new HybridVectorClock(this.members.size(), myIndexOfTheGroup,parameters.globalEpsilon);
+		parameters.setRandom(myIndexOfTheGroup);
 		localTraceCollector = new LocalTraceCollector(parameters.numberOfMembers);
 	}
 	private void printInstruction() {
@@ -175,7 +187,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						+ "[long epsilon:micro secs] "
 						+ "[string uniform || zipf={double skew}]" 
 						+ "[string query: no || yes={epsilon_start:epsilon_interval:epsilon_stop}");
-		System.out.println("usage2: info num_nodes || ntp_internet (ms) || ntp_amazon (s)");
+		System.out.println("usage2: info num_nodes || ntp_internet (ms) || ntp_amazon (s) || group_latency (mu-s)");
 		System.out.println("usage3: exit");
 	}
 	private boolean correctFormat(String[] cmd) {
@@ -184,11 +196,11 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		if(!lengthEqual8) { 
 			return false;
 		}
-		boolean firstisint = isInteger(cmd[1]);
-		boolean secondisint = isInteger(cmd[2]);
-		boolean thirdisreal = isNumeric(cmd[3]);
-		boolean fourthislong = isLong(cmd[4]);
-		boolean fifthislong = isLong(cmd[5]);
+		boolean firstisint = SimpleMessageUtilities.isInteger(cmd[1]);
+		boolean secondisint = SimpleMessageUtilities.isInteger(cmd[2]);
+		boolean thirdisreal = SimpleMessageUtilities.isNumeric(cmd[3]);
+		boolean fourthislong = SimpleMessageUtilities.isLong(cmd[4]);
+		boolean fifthislong = SimpleMessageUtilities.isLong(cmd[5]);
 		
 		if( firstisint && secondisint && thirdisreal && fourthislong && fifthislong)  {
 			double unicastProbabilityMessage = Double.parseDouble(cmd[3]);
@@ -228,16 +240,18 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 								) 
 		);
 	    channel.send(null,packet);
-	    
-	    System.out.println("Multicast messages have been sent.");
+	    System.out.println("---------");
+	    System.out.println("start messages have been sent.");
 		System.out.println("With the following parameters:");
 		System.out.println("StartTime = "+startTimeMessage);
-		System.out.println("Duration = "+ cmd[1]);
-		System.out.println("Time Unit = "+cmd[2]);
+		System.out.println("Duration = "+ cmd[1] + " s");
+		System.out.println("Time Unit = "+cmd[2] + "mu-s");
 		System.out.println("UnicastProbability = "+cmd[3]);
-		System.out.println("Period = "+cmd[4]);
-		System.out.println("Epsilon = " + cmd[5]);
-		System.out.println("--");
+		System.out.println("Period = "+cmd[4] + "ms");
+		System.out.println("Epsilon = " + cmd[5] + "mu-s");
+		System.out.println(destinationDistributionString);
+		System.out.println(queryString);
+		System.out.println("---------");
 	}
 		
 	private void waitUntilReceivedAllLocalStates(LocalState s) throws Exception {
@@ -270,7 +284,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 			}
 			else if(line.startsWith("info")) {
 				
-				//System.out.println("usage2: info num_nodes || ntp_internet || ntp_amazon");
+				//System.out.println("usage2: info num_nodes || ntp_internet || ntp_amazon || ");
 				String[] command = line.split(" ");
 				boolean length2= command.length == 2;
 				if(!length2) { 
@@ -285,17 +299,22 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 				System.out.println("Number of worker nodes is " + numWorkers);
 				globalNtpOffset = new ArrayList<>();
 				Packet packet;  
-				if(command[1].startsWith("ntp_internet")) {
+				if(command[1].startsWith("ntp_int")) {
 					packet = new Packet(MessageType.REQUEST_INTERNET_NTP);
 					//channel.send(SimpleMessageUtilities.getOobMessage(null, packet));
 					channel.send(null,packet);
 					state = LocalState.GET_INTERNET_NTP;
 				
 				}
-				else if(command[1].startsWith("ntp_amazon")) {
+				else if(command[1].startsWith("ntp_ama")) {
 					packet = new Packet(MessageType.REQUEST_AMAZON_NTP);
 					channel.send(null,packet);
 					state = LocalState.GET_AMAZON_NTP;
+				}
+				else if (command[1].startsWith("group")) {
+					packet = new Packet(MessageType.START_LATENCY);
+					channel.send(null,packet);
+					state = LocalState.GET_LATENCY;
 				}
 				else {
 					//printInstruction();
@@ -326,9 +345,10 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 				case IDLE:  
 					Thread.sleep(1000); 
 					System.out.print(".");
-					/*this.members = channel.getView().getMembers();  
+					this.members = channel.getView().getMembers();  
 					this.myIndexOfTheGroup = indexOfMyAddress(members); 
-					if(myIndexOfTheGroup==1) {
+				/*	if(myIndexOfTheGroup==1) {
+						Thread.sleep(5000); 
 						//ping leader to let ssh connection stay alive
 						 Packet pingpacket = new Packet(MessageType.PING);
 						 channel.send(members.get(0),pingpacket);
@@ -349,13 +369,36 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					 channel.send(members.get(0),packetinfo);
 					 state = LocalState.IDLE;
 					 continue;
-				 
+				case GET_LATENCY:  
+					 int numProcesses = this.numWorkers+1;
+					 int pingDestination = (myIndexOfTheGroup+1)%numProcesses;
+					 localClock.initHLC();
+					 while(true) {
+						 if(pingDestination == 0) pingDestination = 1;
+						 if(pingDestination == myIndexOfTheGroup) break;
+						 int numTrials = 10000;
+						 while(numTrials-->0) {
+							//System.out.println("send to " +pingDestination);
+							 SimpleMessageUtilities.busyWaitMicros(100);
+						//	 Thread.sleep(1);
+						// 	localClock.timestampLocalEventHLC();
+						 	//localClock.timestampLocalEvent();
+						 	Packet packet = new Packet(MessageType.PING_LATENCY, Instant.now(), myIndexOfTheGroup);
+						 	channel.send(SimpleMessageUtilities.getOobMessage(members.get(pingDestination), packet));
+						 }
+						 pingDestination = (pingDestination+1)%numProcesses;
+					 }
+					 Thread.sleep(3000);
+					 localStatisticsCollector.reportStatistics();
+					 channel.send(members.get(0),new Packet(MessageType.COLLECT_LATENCY, localStatisticsCollector));
+					 state = LocalState.IDLE;
+					 continue;
 				case SETUP: 
 					 nonLeaderSetup(); 
 					 System.out.println("SETUP READY: My index is " + Integer.toString(myIndexOfTheGroup));
 					 initL = parameters.startTime.toInstant();
 					 lastL = initL.plusSeconds(parameters.duration);
-					 waitUntil(parameters.startTime);
+					 SimpleMessageUtilities.waitUntil(parameters.startTime);
 					 initTime  = Instant.now();
 					 localClock.timestampLocalEvent();
 					 localClock.timestampLocalEventHLC();
@@ -365,8 +408,9 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					 continue;
 				case EXECUTE: 
 					SimpleMessageUtilities.busyWaitMicros(parameters.timeUnitMicrosec);
-					boolean sendMessage = parameters.nextDouble() <= parameters.unicastProbability;
-					if(sendMessage) {
+				//	boolean sendMessage = parameters.nextDouble() <= parameters.unicastProbability;
+				//	if(sendMessage) {
+					{
 						int destination = parameters.nextDestination();
 						localClock.timestampSendEvent();
 						localClock.timestampSendEventHLC();
@@ -374,10 +418,10 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					//	channel.send(members.get(destination),packet);
 						channel.send(SimpleMessageUtilities.getOobMessage(members.get(destination), packet));
 						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.SEND_MESSAGE, localClock, Instant.now()));
-					
+					}
 						//System.out.print("Send to "+  Integer.toString(destination)+ ": ");
 						//localClock.print();
-					}
+				//	}
 					 elapsedTime =  Duration.between(initTime, Instant.now());//Instant.now() - initTime;
 					 if(elapsedTime.toMillis() > parameters.duration) state = LocalState.FINISH;
 					 continue;
@@ -391,10 +435,8 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						localTraceCollector.computeHvcSizeOverEpsilon(parameters.epsilonStart, parameters.epsilonInterval, parameters.epsilonStop);
 					}
 					Packet packet = new Packet(MessageType.CONFIG_FINISH,localTraceCollector, myIndexOfTheGroup);
-				//	System.out.println("Sending back");
-					Thread.sleep(3000); 
 					channel.send(members.get(0),packet);
-				//	System.out.println("DONE");
+					
 					state = LocalState.IDLE; 
 					continue;
 				case STOP: 
@@ -416,28 +458,6 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 			nonLeaderRoutine();
 		}		
 	}
-	
-	public boolean isInteger( String input ) {
-	    try {
-	        Integer.parseInt( input );
-	        return true;
-	    }
-	    catch( Exception e ) {
-	        return false;
-	    }
-	}
-	
-	public boolean isLong( String input ) {
-	    try {
-	        Long.parseLong( input );
-	        return true;
-	    }
-	    catch( Exception e ) {
-	        return false;
-	    }
-	}
-	
- 
 	
 	public static void main(String[] args) throws Exception { 
 		   
@@ -476,6 +496,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	private LeaderTraceCollector leaderTraceCollector;
 	private LocalTraceCollector localTraceCollector;
 	
+	private LocalStatisticsCollector localStatisticsCollector;
 	//parameters contain global variables and local variables with parameters from the leader.
 	private RunningParameters parameters; 
 

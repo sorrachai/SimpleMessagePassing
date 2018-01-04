@@ -1,4 +1,4 @@
-
+import java.time.Instant;
 
 public class Packet implements java.io.Serializable {
 
@@ -10,7 +10,20 @@ public class Packet implements java.io.Serializable {
 	private int indexFrom;
 	private RunningParameters parameters; 
 	private double ntpOffset;
+	private LocalStatisticsCollector localStat; 
+	  private Instant time;
 	  
+	  public Instant getTime() {
+		  return time;
+	  }
+	  public Packet (MessageType type, LocalStatisticsCollector localStat) {
+		  if(type==MessageType.COLLECT_LATENCY) {
+			  this.type = type;
+			  this.localStat = localStat;
+		  } else {
+			  this.type = MessageType.IGNORE;
+		  }
+	  }
 	  public Packet(MessageType type, double ntpOffset) {
 		  if(type == MessageType.REPLY_NTP) {
 			  this.type = type;
@@ -19,11 +32,31 @@ public class Packet implements java.io.Serializable {
 			  this.type = MessageType.IGNORE;
 		  }
 	  }
+	  public Packet(MessageType type, Instant time, int indexFrom) {
+		  if( type ==MessageType.PING_LATENCY ) {
+			  this.type = type;
+			  this.time  = time;
+			  this.indexFrom = indexFrom;
+		  } 	
+		  else {
+			  this.type = MessageType.IGNORE;
+		  }
+	  }
+	  public Packet(MessageType type, Instant time) {
+		  if( type ==MessageType.PONG_LATENCY ) {
+			  this.type = type;
+			  this.time  = time; 
+		  } 	
+		  else {
+			  this.type = MessageType.IGNORE;
+		  }
+	  }
 	  public Packet(MessageType type, Timestamp localTimestamp) {
 		  if(type == MessageType.NORMAL_RECEIVE) {
 			  this.type = type;
 			  this.localTimestamp = localTimestamp;
-		  } else {
+		  } 	
+		  else {
 			  this.type = MessageType.IGNORE;
 		  }
 	  }
@@ -49,6 +82,9 @@ public class Packet implements java.io.Serializable {
 	  }
 	  public double getNtpOffset() { 
 		  return ntpOffset;
+	  }
+	  public LocalStatisticsCollector getLocalStatisticsCollector() {
+		  return localStat;
 	  }
 	  public RunningParameters getRunningParameter() {
 		  return parameters;

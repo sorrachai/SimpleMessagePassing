@@ -13,8 +13,7 @@ public class LeaderTraceCollector {
 		globalHvcSizeOverTime = new ArrayList<>();
 		globalHvcSizeOverEpsilonNumEvents = new ArrayList<>();
 		globalHvcSizeOverEpsilonDomain = new ArrayList<>();
-		globalHvcSizeOverTimeDomain = new ArrayList<>();
-		 
+		globalHvcSizeOverTimeDomain = new ArrayList<>(); 
 		
 		globalTraceCounter=0;
 		this.numProcesses = numProcesses;
@@ -188,8 +187,16 @@ public class LeaderTraceCollector {
 		}
 	}
 	
-	public void printTotalNumSentMessages() {
-		System.out.println("Total messages is " + globalNumSentMessages);
+	public void printStatistics(RunningParameters parameters) {
+		System.out.println("Number of messages = " + globalNumSentMessages);
+		//System.out.println("Theoretical number of messages = " + );
+		double theoreticalThroughput= 1000000.0*parameters.unicastProbability/parameters.timeUnitMicrosec;
+		double observedThroughput = 1000*globalNumSentMessages/((double)parameters.duration*(numProcesses-1.0));
+		System.out.println("Observed Throughput = " +  observedThroughput + " msgs/sec/node");
+		System.out.println("Theoretical throughput = "+ theoreticalThroughput + " msgs/sec/node");
+		
+		System.out.println("Performance ratio = " +  observedThroughput/theoreticalThroughput);
+		
 	}
 
 	private Instant initialL;
