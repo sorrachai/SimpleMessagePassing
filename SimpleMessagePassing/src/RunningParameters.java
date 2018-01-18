@@ -16,19 +16,24 @@ public class RunningParameters implements Serializable{
 	public final Date startTime;
 	public final long HvcCollectingPeriod;
 	public final long globalEpsilon;
+	
 	private final String destinationDistributionString;
-	private final String queryString;
+	private final String queryString; 
+	
 	public final int numberOfMembers;
 	public final long epsilonInterval; 
 	public final long epsilonStart;
 	public final long epsilonStop;
 	public final boolean runQuery;
+	
+	public final TimestampType timestampType;
 	private final long initialRandomSeed;
 	
 	private RandomDestinationGenerator randomDestination;
 	private long myRandomSeed;
 	private Random randomSource;
- 
+  
+	
 	public RunningParameters( int numberOfMembers,
 							  long initialRandomSeed,
 							  double unicastProbability,
@@ -38,8 +43,8 @@ public class RunningParameters implements Serializable{
 							  long HVCCollectingPeriod,
 							  long epsilon,
 							  String destinationDistributionString,
-							  String queryString
-							  ) {
+							  String queryString,
+							  String causalityClockString) {
 		this.numberOfMembers = numberOfMembers;
 		this.unicastProbability = unicastProbability;
 		this.timeUnitMicrosec = timeUnitMicrosec;
@@ -51,7 +56,23 @@ public class RunningParameters implements Serializable{
 		this.queryString = queryString;
 		epsilonInterval = epsilonStart = epsilonStop = 0;
 		runQuery = false;
-		this.initialRandomSeed = initialRandomSeed;
+		
+		if(causalityClockString.startsWith("hvc")) {	
+			this.timestampType = TimestampType.HVC;
+		} else if(causalityClockString.startsWith("vc")) {
+			this.timestampType = TimestampType.VC;
+		} else if(causalityClockString.startsWith("hlc")) {	 
+			this.timestampType = TimestampType.HLC;
+		} else if(causalityClockString.startsWith("stat_hvc")) {
+			this.timestampType = TimestampType.STAT_HVC;
+		} else if(causalityClockString.startsWith("no")) {
+			this.timestampType = TimestampType.NO_TIMESTAMP;
+		} else {
+			System.out.println("Warning unknown causality clock option: use hvc as a default.");
+			this.timestampType = TimestampType.HVC;
+		}
+		
+		this.initialRandomSeed = initialRandomSeed; 
   }
   public RunningParameters(RunningParameters p) {
 	   this.numberOfMembers = p.numberOfMembers;
@@ -64,6 +85,7 @@ public class RunningParameters implements Serializable{
 	   this.destinationDistributionString = p.destinationDistributionString;
 	   this.queryString = p.queryString; 
 	   this.initialRandomSeed = p.initialRandomSeed;
+	   this.timestampType = p.timestampType;
 	   
 		if(queryString.startsWith("yes")) {
 			this.runQuery = true;

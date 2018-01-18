@@ -82,7 +82,7 @@ public class LeaderTraceCollector {
 		for(ArrayList<LocalEvent> ve : globalTrace) {
 			System.out.println("Printing event from process : " + Integer.toString(i++));
 			for(LocalEvent e : ve) {
-				e.localTimestamp.print();
+				e.localCausalityClock.print();
 			}
 			System.out.println("---------");
 		}

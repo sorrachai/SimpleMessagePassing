@@ -1,15 +1,15 @@
+import java.time.Instant;
 
-
-public class VectorClock extends Timestamp{
+public class VectorClock implements CausalityClock{
 
 	public VectorClock(int numProcesses, int myIndex) {
-		super(numProcesses, myIndex); 
+		//super(numProcesses, myIndex); 
 		init(numProcesses,myIndex);
 	}
 
 	public VectorClock(VectorClock that) {
 		// TODO Auto-generated constructor stub
-		super(that);
+		//super(that);
 		init(that.numProcesses, that.myIndex);
 		for(int i=0;i<numProcesses;i++) {
 			this.entries[i] = that.entries[i]; 
@@ -30,7 +30,9 @@ public class VectorClock extends Timestamp{
 			entries[i]=0;
 		}
 	}
-	
+	public void timestampDummyEvent(Instant t) { 
+			return;
+	}
 	public void timestampDummyEvent(long t) {
 		if(entries[myIndex] > t) System.out.println("Warning: entries[myIndex] > t in timestampDummyEvent" );;
 		entries[myIndex] = Math.max(entries[myIndex], (int)t);
@@ -44,7 +46,7 @@ public class VectorClock extends Timestamp{
 	}
 
 	@Override
-	public void timestampReceiveEvent(Timestamp m) {
+	public void timestampReceiveEvent(CausalityClock m) {
 		// TODO Auto-generated method stub
 		VectorClock fromMessage = (VectorClock) m;
 		entries[myIndex]++;
@@ -73,4 +75,9 @@ public class VectorClock extends Timestamp{
 	private int[] entries;
 	private int myIndex;
 	private int numProcesses;
+
+	@Override
+	public int getNumberActiveEntries() { 
+		return entries.length-1;
+	}
 }

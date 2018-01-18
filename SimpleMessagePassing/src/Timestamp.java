@@ -1,24 +1,106 @@
 import java.time.Instant;
 
-public abstract class Timestamp  implements java.io.Serializable {
-	 
+public class Timestamp implements java.io.Serializable {
+
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = -2684565411535156950L;
-
-	public Timestamp(int numProcesses, int myIndex) { 
+	private static final long serialVersionUID = -1239500822114531635L;
+	public Timestamp() {
 		initHLC();
+		type = TimestampType.NO_TIMESTAMP;
 	}
 	public Timestamp(Timestamp that) {
+		
+		this.type = that.type;
 		this.l = that.l;
 		this.c = that.c;
-	} 
-	abstract public void timestampSendEvent();
-	abstract public void timestampReceiveEvent(Timestamp timestamp);
-	abstract public void timestampLocalEvent(); 
-	abstract public void print();
+		
+		switch(type) {
+			case VC: 
+				this.localCausalityClock = new VectorClock((VectorClock)that.localCausalityClock);
+				break;
+			case HVC:
+				this.localCausalityClock = new HybridVectorClock((HybridVectorClock)that.localCausalityClock);
+				break;
+			case STAT_HVC:
+				this.localCausalityClock = new StatHVC((StatHVC)that.localCausalityClock);
+				break;
+			case HLC: 
+				break;
+			case NO_TIMESTAMP:
+				break;
+			default:
+				break;
+		}
+	}
 	
+	public Timestamp(TimestampType type, int numProcesses, int myIndex, long epsilon) {
+		
+		this.type = type;
+		initHLC();	
+	 
+		switch(type) {
+			case VC: 
+				this.localCausalityClock = new VectorClock(numProcesses, myIndex);
+				break;
+			case HVC:
+				this.localCausalityClock = new HybridVectorClock(myIndex, epsilon);
+				break;
+			case STAT_HVC:
+				this.localCausalityClock = new StatHVC(numProcesses, myIndex, epsilon);
+				break;
+			case HLC: 
+				break;
+			case NO_TIMESTAMP:
+				break;
+			default:
+				break;
+		}
+	}
+	
+	public void timestampSendEvent() {
+		if(this.type == TimestampType.NO_TIMESTAMP) return;
+		timestampSendEventHLC();
+		if(this.type == TimestampType.HLC) return;
+		localCausalityClock.timestampSendEvent();	
+	}
+    public void timestampReceiveEvent(Timestamp in) {
+    		if(this.type == TimestampType.NO_TIMESTAMP) return;
+		timestampReceiveEventHLC(in);
+		if(this.type == TimestampType.HLC) return;
+    		localCausalityClock.timestampReceiveEvent(in.localCausalityClock);
+    }
+    public void timestampLocalEvent() {
+    	    if(this.type == TimestampType.NO_TIMESTAMP) return;
+		timestampLocalEventHLC();
+		if(this.type == TimestampType.HLC) return;
+    		localCausalityClock.timestampLocalEvent();
+    }
+	public void timestampDummyEvent(Instant L) {
+		if(this.type == TimestampType.NO_TIMESTAMP || this.type == TimestampType.HLC) return;
+		localCausalityClock.timestampDummyEvent(L);
+	}
+	public int getNumberActiveEntries(long epsilon) {
+		if (this.type == TimestampType.STAT_HVC)  {
+			return ((StatHVC)(localCausalityClock)).getNumberActiveEntries(epsilon);
+		} else {
+			throw new UnsupportedOperationException();
+		}
+	}
+	
+	public int getNumberActiveEntries() {
+		if(this.type == TimestampType.HLC) return 1;
+		if(this.type == TimestampType.NO_TIMESTAMP) return 0;
+		
+		return localCausalityClock.getNumberActiveEntries();
+	}
+	
+	public void print() {
+		if(this.type == TimestampType.NO_TIMESTAMP || this.type == TimestampType.HLC) return;
+		localCausalityClock.print();
+		printHLC();
+	}
 	
 	//default HLC for getting a consistent snapshot
 	private long c;
@@ -30,11 +112,12 @@ public abstract class Timestamp  implements java.io.Serializable {
 	public long getC() {
 		return c;
 	}
-	public void initHLC() {
+	private void initHLC() {
 		l = Instant.now();
 		c = 0;
 	}
-	public void timestampSendEventHLC() {
+	private void timestampSendEventHLC() {
+		if(type == TimestampType.NO_TIMESTAMP) return;
 		Instant temp_l = l;
 		l = SimpleMessageUtilities.maxInstant(temp_l, Instant.now());
 		if( l.equals(temp_l)) {
@@ -43,7 +126,8 @@ public abstract class Timestamp  implements java.io.Serializable {
 			c=0;
 		}
 	}
-	public void timestampReceiveEventHLC(Timestamp m) {
+	private void timestampReceiveEventHLC(Timestamp m) {
+		if(type == TimestampType.NO_TIMESTAMP) return;
 		Instant temp_l = l;
 		Instant l_m = m.getL();
 		long c_m = m.getC();
@@ -59,11 +143,15 @@ public abstract class Timestamp  implements java.io.Serializable {
 			c = 0;
 		}
 	}
-	public void timestampLocalEventHLC() {
+	private void timestampLocalEventHLC() {
+		if(type == TimestampType.NO_TIMESTAMP) return;
 		timestampSendEventHLC();
 	} 
-	public void printHLC() {
+	private void printHLC() {
+		if(type == TimestampType.NO_TIMESTAMP) return;
 		System.out.println("(L,C) = (" + l + "," + Long.toString(c) +")");
 	}
 	
+	private TimestampType type;
+	private CausalityClock localCausalityClock;
 }

@@ -54,10 +54,10 @@ public class LocalTraceCollector implements Serializable {
 	public void pushLocalTrace(LocalEvent e) {
 		localTrace.add(e);
 		/*if(e.type==EventType.SEND_MESSAGE || e.type==EventType.RECEIVE_MESSAGE || e.type == EventType.LOCAL_EVENT) {
-			int numEntries = ((HybridVectorClock)(e.localTimestamp)).getNumberActiveEntries();
+			int numEntries = ((StatHVC)(e.localTimestamp)).getNumberActiveEntries();
 			hvcSizeHistogram[numEntries]++;
 		}*/
-		if(e.type==EventType.SEND_MESSAGE) {
+		if(e.eventType==EventType.SEND_MESSAGE) {
 			numSentMessages++;
 		}
 	}
@@ -87,21 +87,21 @@ public class LocalTraceCollector implements Serializable {
 			 if(dummyTracePtr >= dummySize) {
 				 break;
 			 }
-			 Timestamp thisTimestamp = localTrace.get(localTracePtr).localTimestamp; 
+			 Timestamp thisTimestamp = localTrace.get(localTracePtr).localCausalityClock; 
 			 Instant localL =  thisTimestamp.getL();
 			 Instant dummyL = dummyTrace[dummyTracePtr];
 			 if(dummyL.isAfter(localL)) {
 				 localTracePtr++;
 			 } else if (dummyL.isBefore(localL) || (dummyL.equals(localL) && thisTimestamp.getC() != 0)) {
 				 int preLocalTracePtr = Math.max(localTracePtr-1,0);
-				 HybridVectorClock hvcDummy = new HybridVectorClock((HybridVectorClock)localTrace.get(preLocalTracePtr).localTimestamp);
-				 hvcDummy.timestampDummyEvent(dummyL);
-				 hvcTrace.add(new LocalEvent(EventType.LOCAL_EVENT,hvcDummy,dummyL));
+				 Timestamp timestampDummy = new Timestamp(localTrace.get(preLocalTracePtr).localCausalityClock);
+				 timestampDummy.timestampDummyEvent(dummyL);
+				 hvcTrace.add(new LocalEvent(EventType.LOCAL_EVENT,timestampDummy,dummyL));
 				 dummyTracePtr++;
 			 } else {
-				 HybridVectorClock hvcDummy = new HybridVectorClock((HybridVectorClock)thisTimestamp);
-				 hvcDummy.timestampDummyEvent(dummyL);
-				 hvcTrace.add(new LocalEvent(EventType.LOCAL_EVENT,hvcDummy,dummyL));
+				 Timestamp timestampDummy = new Timestamp(thisTimestamp);
+				 timestampDummy.timestampDummyEvent(dummyL);
+				 hvcTrace.add(new LocalEvent(EventType.LOCAL_EVENT,timestampDummy,dummyL));
 				 dummyTracePtr++;
 				 localTracePtr++;
 			 }
@@ -112,7 +112,7 @@ public class LocalTraceCollector implements Serializable {
 		//ArrayList<Long> tlong = new ArrayList<>();
 		for(LocalEvent e : hvcTrace) {
 			//tlong.add(e.localWallClock);
-			hvcSizeOverTime.add(((HybridVectorClock)(e.localTimestamp)).getNumberActiveEntries());
+			hvcSizeOverTime.add(e.localCausalityClock.getNumberActiveEntries());
 			hvcSizeOverTimeDomain.add(e.localWallClock);
 		}
 	/*	System.out.print("HVC_SIZE TIME \n[ ");
@@ -129,14 +129,13 @@ public class LocalTraceCollector implements Serializable {
 		System.out.println("]");*/
 	}
 	public void computeHvcSizeOverEpsilon(long startEpsilon, long incrementInterval, long stopEpsilon) {
-		 
-		 
+
 		ArrayList<LocalEvent> subHvcTrace = new ArrayList<LocalEvent>(hvcTrace.subList(Math.min(0, hvcTrace.size()), hvcTrace.size()));
 		for(long eps = startEpsilon; eps <= stopEpsilon; eps += incrementInterval ) {
 			int sumHVCSize = 0; 
 			int numEvents = 0;
 			for(LocalEvent e : subHvcTrace) {
-				sumHVCSize +=  ((HybridVectorClock)(e.localTimestamp)).getNumberActiveEntries(eps);
+				sumHVCSize +=  (e.localCausalityClock).getNumberActiveEntries(eps);
 				numEvents++;
 			}
 			//hvcSizeOverEpsilon += Integer.toString(sumHVCSize)+" ";
@@ -150,7 +149,7 @@ public class LocalTraceCollector implements Serializable {
 	
 	public void printLocalTrace() {
 		for(LocalEvent e : localTrace) {
-			e.localTimestamp.print();
+			e.localCausalityClock.print();
 		}
 	}
 	private int numberOfMembers;
