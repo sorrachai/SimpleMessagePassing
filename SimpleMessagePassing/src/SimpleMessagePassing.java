@@ -46,16 +46,17 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		 			channel.send(SimpleMessageUtilities.getOobMessage(members.get(receivedFrom), pong));
 			 		break;
 			 	case PONG_LATENCY:
-		 			Duration RTT = Duration.between(receivedPacket.getTime(), Instant.now()); 
-		 			try {
-		 				long durationMicrosec = Math.round(RTT.toNanos()/(2*1000.0));
-			 			synchronized(localStatisticsCollector) {
-			 				localStatisticsCollector.updateLocalRTTs(durationMicrosec);
-			 			} 
-		 			} catch(Exception e) {
-		 				e.printStackTrace();
-		 			}
-	
+			 		if(state == LocalState.EXECUTE_LATENCY_RUN  || state == LocalState.GET_LATENCY) {
+			 			Duration RTT = Duration.between(receivedPacket.getTime(), Instant.now()); 
+			 			try {
+			 				long durationMicrosec = Math.round(RTT.toNanos()/(2*1000.0));
+				 			synchronized(localStatisticsCollector) {
+				 				localStatisticsCollector.updateLocalRTTs(durationMicrosec);
+				 			} 
+			 			} catch(Exception e) {
+			 				e.printStackTrace();
+			 			}
+			 		}
 			 		break;
 			 	case COLLECT_LATENCY: 
 			 		LocalStatisticsCollector receivedLocalStatistics = receivedPacket.getLocalStatisticsCollector();
@@ -65,25 +66,34 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 			 		if(localStatisticsCollector.numReceivedEqualTo(numWorkers)) { 
 			 			localStatisticsCollector.reportStatistics();
 			 			System.out.println("packet size = " + SimpleMessageUtilities.getOobMessage(members.get(0), new Packet(MessageType.PONG_LATENCY,localClock)).size() + " Bytes");
-			 			state = LocalState.IDLE;
+			 			if(state != LocalState.SETUP_LATENCY_RUN) state = LocalState.IDLE;
 			 		}
 			 		break;
 				case NORMAL_RECEIVE: 
-					if(state==LocalState.EXECUTE ) {
+					if(state==LocalState.EXECUTE_NORMAL_RUN ) {
 						Timestamp t = receivedPacket.getLocalTimestamp();
+						
 						synchronized(localClock) {
+							
 							localClock.timestampReceiveEvent(t);
-							//localClock.timestampReceiveEventHLC(ts);
+							
+							/*
+							System.out.println("Received: ");
+							t.print();
+							System.out.println("Before: ");
+							localClock.print();
+							localClock.timestampReceiveEvent(t);
+							System.out.println("After receive");
+							localClock.print(); */ 
 						}
-						System.out.print("Received: ");
-						localClock.print();
+						
 						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.RECEIVE_MESSAGE,localClock,Instant.now()));
 					}
 					break;
 				
 				case CONFIG_START:
 					parameters = new RunningParameters(receivedPacket.getRunningParameter());
-					state = LocalState.SETUP;
+					state = LocalState.SETUP_LATENCY_RUN;
 					break;
 				case CONFIG_STOP:
 					state = LocalState.STOP;
@@ -164,19 +174,19 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		this.members = channel.getView().getMembers();  
 		this.myIndexOfTheGroup = indexOfMyAddress(members); 
 		this.numWorkers = this.members.size()-1;
-		this.localClock = new Timestamp(TimestampType.HVC,this.members.size(),myIndexOfTheGroup,1);
-		//this.localClock = new Timestamp(TimestampType.NO_TIMESTAMP,this.members.size(),myIndexOfTheGroup,1);
+		this.localClock = new Timestamp(TimestampType.NO_TIMESTAMP,this.members.size(),myIndexOfTheGroup,1);
+		
 	}
 	private void leaderSetup() {
 		localSetup();
-		//this.localClock = new StatHVC(this.members.size(), myIndexOfTheGroup,parameters.globalEpsilon);
+		localStatisticsCollector = new LocalStatisticsCollector();
 		this.localClock = new Timestamp(parameters.timestampType,this.members.size(), myIndexOfTheGroup,parameters.globalEpsilon);
 		parameters.setRandom(myIndexOfTheGroup);
 		leaderTraceCollector = new LeaderTraceCollector(parameters.numberOfMembers,parameters.startTime.toInstant());
 	}
 	private void nonLeaderSetup() {
 		localSetup();
-		//this.localClock = new StatHVC(this.members.size(), myIndexOfTheGroup,parameters.globalEpsilon);
+		localStatisticsCollector = new LocalStatisticsCollector();
 		this.localClock = new Timestamp(parameters.timestampType,this.members.size(), myIndexOfTheGroup,parameters.globalEpsilon);
 		parameters.setRandom(myIndexOfTheGroup);
 		localTraceCollector = new LocalTraceCollector(parameters.numberOfMembers);
@@ -191,7 +201,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						+ "[string uniform || zipf={double skew}]" 
 						+ "[string query: no || yes={epsilon_start:epsilon_interval:epsilon_stop}"
 						+ "[string causality_clock: {hvc,vc,hlc, stat_hvc, no_clock}");
-		System.out.println("usage2: info num_nodes || ntp_internet (ms) || ntp_amazon (s) || group_latency (mu-s)");
+		System.out.println("usage2: get num_nodes || ntp_internet (ms) || ntp_amazon (s) || group_latency (mu-s)");
 		System.out.println("usage3: exit");
 	}
 	private boolean correctFormat(String[] cmd) {
@@ -301,12 +311,12 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					continue;
 				}
 				broadcastCommand(command);
-				while(state!=LocalState.SETUP);
+				while(state!=LocalState.SETUP_LATENCY_RUN);
 				leaderSetup();		
-				waitUntilReceivedAllLocalStates(LocalState.SETUP); 
+				waitUntilReceivedAllLocalStates(LocalState.SETUP_LATENCY_RUN); 
 				System.out.println("The execution has been completed.");
 			}
-			else if(line.startsWith("info")) {
+			else if(line.startsWith("get")) {
 				
 				//System.out.println("usage2: info num_nodes || ntp_internet || ntp_amazon || ");
 				String[] command = line.split(" ");
@@ -363,6 +373,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 			Duration elapsedTime; //= initTime; 
 			Instant initL = initTime;
 			Instant lastL = initTime;
+			boolean sendMessage;
 			//local state may be changed upon receiving a message
 			while(true) {
 				switch(state) {
@@ -400,54 +411,102 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					 while(true) {
 						 if(pingDestination == 0) pingDestination = 1;
 						 if(pingDestination == myIndexOfTheGroup) break;
-						 int numTrials = 10000;
+						 int numTrials = 1000;
 						 while(numTrials-->0) {
 							//System.out.println("send to " +pingDestination);
-							 SimpleMessageUtilities.busyWaitMicros(100);
+						//	 SimpleMessageUtilities.busyWaitMicros(100);
+							 SimpleMessageUtilities.spinWaitMicros(100);
 						//	 Thread.sleep(1);
 						// 	localClock.timestampLocalEventHLC();
-						 	//localClock.timestampLocalEvent();
+						 	localClock.timestampLocalEvent();
 						 	Packet packet = new Packet(MessageType.PING_LATENCY, Instant.now(), myIndexOfTheGroup);
 						 	channel.send(SimpleMessageUtilities.getOobMessage(members.get(pingDestination), packet));
 						 }
 						 pingDestination = (pingDestination+1)%numProcesses;
 					 }
-					 Thread.sleep(3000);
+					 Thread.sleep(1000);
 					 localStatisticsCollector.reportStatistics();
 					 channel.send(members.get(0),new Packet(MessageType.COLLECT_LATENCY, localStatisticsCollector));
 					 state = LocalState.IDLE;
 					 continue;
-				case SETUP: 
+				case SETUP_NORMAL_RUN:
 					 nonLeaderSetup(); 
-					 System.out.println("SETUP READY: My index is " + Integer.toString(myIndexOfTheGroup));
-					 initL = parameters.startTime.toInstant();
-					 lastL = initL.plusSeconds(parameters.duration);
-					 SimpleMessageUtilities.waitUntil(parameters.startTime);
+					 System.out.println("SETUP FOR NORMAL RUN READY: My index is " + Integer.toString(myIndexOfTheGroup));
+					 initL = parameters.startTime.toInstant().plusMillis(parameters.duration+5*1000);  
+					 lastL = initL.plusMillis(parameters.duration);
+					 //System.out.println(initL);
+					// System.out.println("vs. now: "+Instant.now());
+					 SimpleMessageUtilities.waitUntil(Date.from(initL));
 					 initTime  = Instant.now();
-					 localClock.timestampLocalEvent(); 
-					 //initL = localClock.getL();
+					 localClock.timestampLocalEvent();  
 					 localTraceCollector.pushLocalTrace(new LocalEvent(EventType.START, localClock, initL));
-					 state = LocalState.EXECUTE;
+					 state = LocalState.EXECUTE_NORMAL_RUN;
 					 continue;
-				case EXECUTE: 
-					SimpleMessageUtilities.busyWaitMicros(parameters.timeUnitMicrosec);
-					boolean sendMessage = parameters.nextDouble() <= parameters.unicastProbability;
-					if(sendMessage) {
+				case SETUP_LATENCY_RUN:
+					 nonLeaderSetup(); 
+					 
+					 System.out.println("SETUP FOR LATENCY RUN READY: My index is " + Integer.toString(myIndexOfTheGroup));
+					 initL = parameters.startTime.toInstant();
+					 lastL = initL.plusMillis(parameters.duration);
+					  //System.out.println(initL);
+					 SimpleMessageUtilities.waitUntil(Date.from(initL)); 
+					 initTime  = Instant.now();
+					 localClock.timestampLocalEvent();  
+					
+					 state = LocalState.EXECUTE_LATENCY_RUN;
+					 continue;
+				case EXECUTE_NORMAL_RUN:
+					SimpleMessageUtilities.spinWaitMicros(parameters.timeUnitMicrosec);
+				    sendMessage = parameters.nextDouble() <= parameters.unicastProbability;
+					if(sendMessage) 
 					{
 						int destination = parameters.nextDestination();
-						localClock.timestampSendEvent(); 
-						Packet packet = new Packet(MessageType.NORMAL_RECEIVE,localClock);
-					//	channel.send(members.get(destination),packet);
-						channel.send(SimpleMessageUtilities.getOobMessage(members.get(destination), packet));
-						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.SEND_MESSAGE, localClock, Instant.now()));
+						if(destination == myIndexOfTheGroup) {
+							localClock.timestampLocalEvent();
+							localTraceCollector.pushLocalTrace(new LocalEvent(EventType.LOCAL_EVENT, localClock, Instant.now()));
+						} else {
+							localClock.timestampSendEvent(); 
+							Packet packet = new Packet(MessageType.NORMAL_RECEIVE,localClock);
+							channel.send(SimpleMessageUtilities.getOobMessage(members.get(destination), packet));
+							localTraceCollector.pushLocalTrace(new LocalEvent(EventType.SEND_MESSAGE, localClock, Instant.now()));
+							System.out.println("Send to : " +destination);
+							localClock.print();
+						}
 					}
-						//System.out.print("Send to "+  Integer.toString(destination)+ ": ");
-						//localClock.print();
-					}
-					 elapsedTime =  Duration.between(initTime, Instant.now());//Instant.now() - initTime;
-					 if(elapsedTime.toMillis() > parameters.duration) state = LocalState.FINISH;
+					 elapsedTime =  Duration.between(initTime, Instant.now());
+					 if(elapsedTime.toMillis() > parameters.duration) { 
+						 state = LocalState.FINISH_NORMAL_RUN;
+					 }
+					 
 					 continue;
-				case FINISH: 
+				case EXECUTE_LATENCY_RUN:
+					 
+					SimpleMessageUtilities.spinWaitMicros(parameters.timeUnitMicrosec);
+					sendMessage = parameters.nextDouble() <= parameters.unicastProbability;
+					if(sendMessage) 
+					{
+						int destination = parameters.nextDestination();
+						if(destination != myIndexOfTheGroup) {
+							localClock.timestampSendEvent(); 
+						  	Packet packet = new Packet(MessageType.PING_LATENCY, Instant.now(), myIndexOfTheGroup);
+							channel.send(SimpleMessageUtilities.getOobMessage(members.get(destination), packet));
+						}
+					}
+			
+					 elapsedTime =  Duration.between(initTime, Instant.now());
+					
+					 if(elapsedTime.toMillis() > parameters.duration) {  
+						state = LocalState.FINISH_LATENCY_RUN;
+					 }
+					 
+					continue;
+				case FINISH_LATENCY_RUN:
+					localStatisticsCollector.reportStatistics();
+					channel.send(members.get(0),new Packet(MessageType.COLLECT_LATENCY, localStatisticsCollector));
+					state = LocalState.SETUP_NORMAL_RUN; 
+				    	continue;
+				    	
+				case FINISH_NORMAL_RUN :
 					localClock.timestampLocalEvent(); 
 					localTraceCollector.pushLocalTrace(new LocalEvent(EventType.STOP,localClock, localClock.getL()));
 					localTraceCollector.fillHvcTrace(initL, parameters.HvcCollectingPeriod,lastL);

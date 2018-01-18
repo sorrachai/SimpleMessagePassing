@@ -61,6 +61,7 @@ public class HybridVectorClock implements CausalityClock {
 
 	@Override
 	public void timestampReceiveEvent(CausalityClock m) { 
+		
 		LinkedList<HvcEntry> activeEntriesfromMessage = ((HybridVectorClock) m).activeEntries;	
 		refreshActiveEntries(Instant.now());
 		Instant myTimeMinusEps = myTime.minusNanos(epsilon*1000);
@@ -100,14 +101,6 @@ public class HybridVectorClock implements CausalityClock {
 					newActiveEntries.add(new HvcEntry(entryThis.index,max));	
 				}
 				if(!itrThis.hasNext() || !itrMessage.hasNext()) break;
-			/*	if(!itrThis.hasNext() && itrMessage.hasNext()) {
-					compareMessage = true;
-					break;
-				}
-				else if(!itrMessage.hasNext()) {
-					compareThis = true;
-					break;
-				}*/
 				entryThis = itrThis.next();
 			    entryMessage = itrMessage.next();
 			}

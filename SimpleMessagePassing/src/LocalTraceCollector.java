@@ -1,6 +1,7 @@
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.ArrayList; 
+import java.util.ArrayList;
+import java.util.Vector; 
 
 public class LocalTraceCollector implements Serializable {
 
@@ -10,7 +11,7 @@ public class LocalTraceCollector implements Serializable {
 	private static final long serialVersionUID = -955345333561783777L;
 	public LocalTraceCollector(int numberOfMembers) {
 		this.numberOfMembers = numberOfMembers;
-		localTrace = new ArrayList<>();
+		localTrace = new Vector<>();
 		hvcTrace = new ArrayList<>();
 		hvcSizeOverTime = new ArrayList<>();
 		hvcSizeOverEpsilon = new ArrayList<>();
@@ -30,7 +31,7 @@ public class LocalTraceCollector implements Serializable {
 	public int [] getHvcSizeHistogram() {
 		return hvcSizeHistogram;
 	}
-	public ArrayList<LocalEvent> getLocalTrace() {
+	public Vector<LocalEvent> getLocalTrace() {
 		return this.localTrace;
 	}
 	public ArrayList<LocalEvent> getHvcTrace() {
@@ -154,7 +155,7 @@ public class LocalTraceCollector implements Serializable {
 	}
 	private int numberOfMembers;
 	private ArrayList<LocalEvent> hvcTrace;
-	private ArrayList<LocalEvent> localTrace;
+	private Vector<LocalEvent> localTrace;
 	private ArrayList<Integer> hvcSizeOverTime;
 	private ArrayList<Instant> hvcSizeOverTimeDomain;
 	private ArrayList<Integer> hvcSizeOverEpsilon;  

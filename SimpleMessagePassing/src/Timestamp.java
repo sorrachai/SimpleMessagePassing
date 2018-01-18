@@ -102,10 +102,7 @@ public class Timestamp implements java.io.Serializable {
 		printHLC();
 	}
 	
-	//default HLC for getting a consistent snapshot
-	private long c;
-	private Instant l;
-	
+
 	public Instant getL() {
 		return l;
 	}
@@ -154,4 +151,9 @@ public class Timestamp implements java.io.Serializable {
 	
 	private TimestampType type;
 	private CausalityClock localCausalityClock;
+	
+	//built-in HLC for getting a consistent snapshot
+	private long c;
+	private Instant l;
+	
 }

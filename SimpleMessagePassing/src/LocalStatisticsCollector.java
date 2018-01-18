@@ -12,6 +12,8 @@ public class LocalStatisticsCollector implements Serializable{
 		localRTTs = new ArrayList<>();
 	}
 	private long computeMedian() {
+		if(localRTTs.isEmpty()) return -1;
+		
 		Collections.sort(localRTTs);
 		if(localRTTs.size()%2==1) {
 			return localRTTs.get(localRTTs.size()/2);

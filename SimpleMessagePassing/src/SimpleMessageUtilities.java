@@ -24,11 +24,13 @@ public class SimpleMessageUtilities {
 		return a;
 	}
    
-	 public static void busyWaitMicros(long micros){
+	 public static void spinWaitMicros(long micros){
 		//thanks to: http://www.rationaljava.com/2015/10/measuring-microsecond-in-java.html
         //NanoTimer is a precise timer.
 		long waitUntil = System.nanoTime() + (micros * 1_000);
-        while(waitUntil > System.nanoTime());
+        while(waitUntil > System.nanoTime()) {
+        		java.lang.Thread.onSpinWait();
+        }
     }
 	 
 	public static void writeHistogramToFile(String filename, int [] frequency, int totalFrequency) {
@@ -71,7 +73,7 @@ public class SimpleMessageUtilities {
 	}
 	public static Message getOobMessage(Address dest, Packet p) {
 		//Get out-of-band message which no longer guarantee FIFO delivery
-		return new Message(dest,p).setFlag(Message.Flag.OOB,	Message.Flag.DONT_BUNDLE,Message.Flag.NO_FC, Message.Flag.NO_RELIABILITY, Message.Flag.NO_TOTAL_ORDER); //.setFlag(arg0)
+		return new Message(dest,p).setFlag(Message.Flag.OOB,	Message.Flag.DONT_BUNDLE,Message.Flag.NO_RELIABILITY, Message.Flag.NO_TOTAL_ORDER); //.setFlag(arg0)
 	}
 	private static double runCommandReturnDouble(String cmd) {
 	//credit: https://stackoverflow.com/a/6441483/2959347
