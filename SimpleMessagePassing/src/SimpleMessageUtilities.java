@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.Vector;
 
 import org.jgroups.Address;
 import org.jgroups.Message;
@@ -33,7 +34,7 @@ public class SimpleMessageUtilities {
         }
     }
 	 
-	public static void writeHistogramToFile(String filename, int [] frequency, int totalFrequency) {
+	public static void writeHistogramToFile(String filename, int [] frequency, int totalFrequency, FileWriter outputLog) {
 				DecimalFormat percentage = new DecimalFormat("00.00");
 				FileWriter file;
 				try {
@@ -41,6 +42,10 @@ public class SimpleMessageUtilities {
 					for(int i=1;i<frequency.length;i++) {
 					file.write(Integer.toString(i)+" "+percentage.format(100.0 *(frequency[i] / (double)totalFrequency)));
 					file.write(System.getProperty( "line.separator" ));
+				
+					outputLog.write(Integer.toString(i)+" "+percentage.format(100.0 *(frequency[i] / (double)totalFrequency)));
+					outputLog.write(System.getProperty( "line.separator" ));
+				
 				}
 				file.close();
 				} catch (IOException e) {
@@ -49,16 +54,30 @@ public class SimpleMessageUtilities {
 				}
 			 
 	}
-	public static double average(ArrayList<Double> in) {
+	public static double average(Vector<Double> in) {
 		double sum = 0;
 		for(double d : in) {
 			sum+= Math.abs(d);
 		}
 		return sum/in.size();
 	}
-	public static double max(ArrayList<Double> in) {
+	public static double max(Vector<Double> in) {
 		double m = Math.abs(in.get(0));
 		
+		for(double d : in) {
+			m = Math.max(m, Math.abs(d));
+		}
+		return m;
+	}
+	public static double average(ArrayList<Long> in) {
+		double sum = 0;
+		for(double d : in) {
+			sum+= Math.abs(d);
+		}
+		return sum/in.size();
+	}
+	public static double max(ArrayList<Long> in) {
+		double m = Math.abs(in.get(0));
 		for(double d : in) {
 			m = Math.max(m, Math.abs(d));
 		}
@@ -73,7 +92,7 @@ public class SimpleMessageUtilities {
 	}
 	public static Message getOobMessage(Address dest, Packet p) {
 		//Get out-of-band message which no longer guarantee FIFO delivery
-		return new Message(dest,p).setFlag(Message.Flag.OOB,	Message.Flag.DONT_BUNDLE,Message.Flag.NO_RELIABILITY, Message.Flag.NO_TOTAL_ORDER); //.setFlag(arg0)
+		return new Message(dest,p).setFlag(Message.Flag.OOB,	Message.Flag.DONT_BUNDLE,Message.Flag.NO_RELIABILITY, Message.Flag.NO_TOTAL_ORDER, Message.Flag.NO_FC); //.setFlag(arg0)
 	}
 	private static double runCommandReturnDouble(String cmd) {
 	//credit: https://stackoverflow.com/a/6441483/2959347

@@ -19,10 +19,14 @@ public class LocalTraceCollector implements Serializable {
         hvcSizeOverTimeDomain = new ArrayList<>();
         hvcSizeOverEpsilonDomain = new ArrayList<>();
         hvcSizeHistogram = new int[numberOfMembers+1];
+        messageSizes = new ArrayList<>();
         for(int i=0;i<this.numberOfMembers;i++) {
         		hvcSizeHistogram[i] = 0;
         }
         numSentMessages=0;
+	}
+	public ArrayList<Long> getMessageSizes() {
+		return messageSizes;
 	}
     public int getNumSentMessages() {
    // 	System.out.println("NumSentMessages = " + numSentMessages);
@@ -60,6 +64,8 @@ public class LocalTraceCollector implements Serializable {
 		}*/
 		if(e.eventType==EventType.SEND_MESSAGE) {
 			numSentMessages++;
+			long messagesSize = SimpleMessageUtilities.getOobMessage(null, new Packet(MessageType.NORMAL_RECEIVE,e.localCausalityClock)).size();
+			messageSizes.add(messagesSize);
 		}
 	}
 	
@@ -108,13 +114,13 @@ public class LocalTraceCollector implements Serializable {
 			 }
  		 } 
 	}	
-	public void computeHvcSizeOverTime() {
+	public void computeHvcSizeOverTime(long duration, long period) {
 	//	hvcSizeOverTime = new ArrayList<>();
 		//ArrayList<Long> tlong = new ArrayList<>();
 		for(LocalEvent e : hvcTrace) {
 			//tlong.add(e.localWallClock);
 			hvcSizeOverTime.add(e.localCausalityClock.getNumberActiveEntries());
-			hvcSizeOverTimeDomain.add(e.localWallClock);
+			hvcSizeOverTimeDomain.add(e.localWallClock.minusMillis(5000+duration+period));
 		}
 	/*	System.out.print("HVC_SIZE TIME \n[ ");
 		long first_time = tlong.get(0);
@@ -163,4 +169,5 @@ public class LocalTraceCollector implements Serializable {
 	private ArrayList<Integer> hvcSizeOverEpsilonNumEvents; 
 	private int [] hvcSizeHistogram;
 	private int numSentMessages;
+	private ArrayList<Long> messageSizes;
 }

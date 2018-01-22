@@ -1,6 +1,7 @@
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;  
+import java.util.ArrayList; 
+import java.util.Collections;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -14,7 +15,7 @@ public class LeaderTraceCollector {
 		globalHvcSizeOverEpsilonNumEvents = new ArrayList<>();
 		globalHvcSizeOverEpsilonDomain = new ArrayList<>();
 		globalHvcSizeOverTimeDomain = new ArrayList<>(); 
-		
+		messageSizes = new ArrayList<>();
 		globalTraceCounter=0;
 		this.numProcesses = numProcesses;
 		this.initialL = initialL;
@@ -62,6 +63,7 @@ public class LeaderTraceCollector {
 			System.out.println(globalTraceCounter);
 			//globalTrace.get(from).addAll(in.getLocalTrace()); 
 			//globalHvcTrace.get(from).addAll(in.getHvcTrace());
+			messageSizes.addAll(in.getMessageSizes());
 			globalHvcSizeOverTime.get(from).addAll(in.getHvcSizeOverTime());
 			globalHvcSizeOverTimeDomain.get(from).addAll(in.getHvcSizeOverTimeDomain());
 			globalNumSentMessages+=in.getNumSentMessages();
@@ -89,10 +91,14 @@ public class LeaderTraceCollector {
 	}
 	
 	
-	public void writeHvcSizeOverTimeAvgToFile(String name)  {
+	public void writeHvcSizeOverTimeAvgToFile(String name, FileWriter outputLog, String outputFilename)  {
 
 		try {
-			FileWriter file = new FileWriter("./" + name,false);
+			
+			outputLog.write(name);	
+			outputLog.write(System.getProperty( "line.separator" ));
+			
+			FileWriter file = new FileWriter("./" + outputFilename+ name,false);
 			int traceLength = globalHvcSizeOverTime.get(1).size();
 			
 			for(int i=0;i<traceLength;i++) {
@@ -103,6 +109,10 @@ public class LeaderTraceCollector {
 			
 				}
 				sum = sum/(numProcesses-1);
+				
+				outputLog.write((Duration.between(initialL, globalHvcSizeOverTimeDomain.get(1).get(i))).toMillis()+ " "+ Double.toString(sum));
+				outputLog.write(System.getProperty( "line.separator" ));
+			
 				file.write((Duration.between(initialL, globalHvcSizeOverTimeDomain.get(1).get(i))).toMillis()+ " "+ Double.toString(sum));
 				file.write(System.getProperty( "line.separator" ));
 			}
@@ -114,19 +124,26 @@ public class LeaderTraceCollector {
 		}
 	}
 	
-	public void writeHvcSizeOverTimeRawToFile(String name)  {
+	public void writeHvcSizeOverTimeRawToFile(String name, FileWriter outputLog,String outputFilename)  {
 
 		try {
-			FileWriter file = new FileWriter("./" + name,false);
-			int traceLength = globalHvcSizeOverTime.get(1).size();
 			
+			outputLog.write(name);	
+			outputLog.write(System.getProperty( "line.separator" ));
+		
+		
+			FileWriter file = new FileWriter("./" + outputFilename + name,false);
+			int traceLength = globalHvcSizeOverTime.get(1).size();
 			
 			for(int i=0;i<traceLength;i++) { 
 				file.write((Duration.between(initialL, globalHvcSizeOverTimeDomain.get(1).get(i))).toMillis()+ " ");
+				outputLog.write((Duration.between(initialL, globalHvcSizeOverTimeDomain.get(1).get(i))).toMillis()+ " ");
 				for(int j=1;j<numProcesses;j++) {
 					file.write(globalHvcSizeOverTime.get(j).get(i)+" ");
+					outputLog.write(globalHvcSizeOverTime.get(j).get(i)+" ");
 				}
 				file.write(System.getProperty( "line.separator" ));
+				outputLog.write(System.getProperty( "line.separator" ));
 			}
 			
 			file.close();
@@ -137,7 +154,7 @@ public class LeaderTraceCollector {
 	}
 	
 	
-	public void writeHvcSizeHitogramSnapsnotToFile(String name) {
+	public void writeHvcSizeHitogramSnapsnotToFile(String name, FileWriter outputLog, String outputFilename) throws IOException {
 		 
 		int [] frequency = new int[numProcesses];
 		int traceLength = globalHvcSizeOverTime.get(1).size();	
@@ -148,22 +165,34 @@ public class LeaderTraceCollector {
 				totalFrequency++;
 			}
 		}
-		SimpleMessageUtilities.writeHistogramToFile(name, frequency, totalFrequency);
+		outputLog.write(name);	
+		outputLog.write(System.getProperty( "line.separator" ));
+		
+		SimpleMessageUtilities.writeHistogramToFile(outputFilename+name, frequency, totalFrequency, outputLog);
 		
 	}
  	
-	public void writeHvcSizeHistogramToFile(String name) {
+	public void writeHvcSizeHistogramToFile(String name, FileWriter outputLog, String outputFilename) throws IOException {
 		
 		int totalNumEvents = 0;
 		for(int i=1;i<this.numProcesses;i++) {
 			totalNumEvents += globalHvcSizeHistogram[i]; 
 		}
-		SimpleMessageUtilities.writeHistogramToFile(name, globalHvcSizeHistogram, totalNumEvents);
+		
+		outputLog.write(name);	
+		outputLog.write(System.getProperty( "line.separator" ));
+		
+				
+		SimpleMessageUtilities.writeHistogramToFile(outputFilename+name, globalHvcSizeHistogram, totalNumEvents,outputLog);
 	}
  	
-	public void writeHvcSizeOverEpsilonToFile(String name) {
+	public void writeHvcSizeOverEpsilonToFile(String name, FileWriter outputLog, String outputFilename) {
 		try {
-			FileWriter file = new FileWriter("./" + name,false);
+			
+			outputLog.write(name);	
+			outputLog.write(System.getProperty( "line.separator" ));
+		
+			FileWriter file = new FileWriter("./" + outputFilename+name,false);
 			int traceLength = globalHvcSizeOverEpsilon.get(1).size();
 			
 			System.out.println(traceLength);
@@ -176,7 +205,10 @@ public class LeaderTraceCollector {
 					num_events += globalHvcSizeOverEpsilonNumEvents.get(j).get(i);
 				}
 				sum = sum/num_events;
-				//sum = sum/(numProcesses-1);
+				//sum = sum/(numProcesses-1); 
+				outputLog.write(globalHvcSizeOverEpsilonDomain.get(1).get(i)+" "+Double.toString(sum));
+				outputLog.write(System.getProperty( "line.separator" ));
+			
 				file.write(globalHvcSizeOverEpsilonDomain.get(1).get(i)+" "+Double.toString(sum));
 				file.write(System.getProperty( "line.separator" ));
 			}
@@ -199,9 +231,49 @@ public class LeaderTraceCollector {
 		
 	}
 
+	public void logStatistics(FileWriter outputLog,RunningParameters parameters) throws IOException {
+
+	
+		outputLog.write("---------------- ");
+		outputLog.write(System.getProperty( "line.separator" ));
+		double theoreticalThroughput= 1000000.0*parameters.unicastProbability/parameters.timeUnitMicrosec;
+		double observedThroughput = 1000*globalNumSentMessages/((double)parameters.duration*(numProcesses-1.0));
+		outputLog.write("| Observed Throughput = " +  observedThroughput + " msgs/sec/node");
+		outputLog.write(System.getProperty( "line.separator" ));
+		outputLog.write("| Theoretical throughput = "+ theoreticalThroughput + " msgs/sec/node");
+		outputLog.write(System.getProperty( "line.separator" ));
+		outputLog.write("| Performance ratio = " +  observedThroughput/theoreticalThroughput);
+		outputLog.write(System.getProperty( "line.separator" ));
+		outputLog.write("---------------- ");
+		outputLog.write(System.getProperty( "line.separator" ));
+		
+		if(!messageSizes.isEmpty()) {
+			Collections.sort(messageSizes); 
+			outputLog.write("Number of messages = " + globalNumSentMessages);
+			outputLog.write(System.getProperty( "line.separator" ));
+			outputLog.write("---------------- ");
+			outputLog.write(System.getProperty( "line.separator" ));
+			outputLog.write("| Average message size: " + SimpleMessageUtilities.average(messageSizes) + " B");
+			outputLog.write(System.getProperty( "line.separator" ));
+			outputLog.write("| Minimum message size: " + messageSizes.get(0)  + " B"); 
+			outputLog.write(System.getProperty( "line.separator" ));
+			outputLog.write("| Median message size: " + messageSizes.get(messageSizes.size()/2)+messageSizes.get(messageSizes.size()/2-1)/2.0  + " B"); 
+			outputLog.write(System.getProperty( "line.separator" ));
+			outputLog.write("| Maximum message size: " + messageSizes.get(messageSizes.size()-1) + " B");
+			outputLog.write(System.getProperty( "line.separator" ));
+			outputLog.write("-----------------");
+			outputLog.write(System.getProperty( "line.separator" ));
+		}
+	}
+
+ 
+		
+	
 	private Instant initialL;
 	private int numProcesses;
 	private int globalTraceCounter;
+	
+	private ArrayList<Long> messageSizes;
 	private ArrayList<ArrayList<LocalEvent>> globalTrace;
 	private ArrayList<ArrayList<LocalEvent>> globalHvcTrace;
 	private ArrayList<ArrayList<Integer>> globalHvcSizeOverTime;

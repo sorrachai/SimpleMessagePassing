@@ -19,6 +19,7 @@ public class RunningParameters implements Serializable{
 	
 	private final String destinationDistributionString;
 	private final String queryString; 
+	public final String ntpTypeString;
 	
 	public final int numberOfMembers;
 	public final long epsilonInterval; 
@@ -28,6 +29,8 @@ public class RunningParameters implements Serializable{
 	
 	public final TimestampType timestampType;
 	private final long initialRandomSeed;
+	
+	
 	
 	private RandomDestinationGenerator randomDestination;
 	private long myRandomSeed;
@@ -44,7 +47,8 @@ public class RunningParameters implements Serializable{
 							  long epsilon,
 							  String destinationDistributionString,
 							  String queryString,
-							  String causalityClockString) {
+							  String causalityClockString, 
+							  String ntpTypeString) {
 		this.numberOfMembers = numberOfMembers;
 		this.unicastProbability = unicastProbability;
 		this.timeUnitMicrosec = timeUnitMicrosec;
@@ -54,6 +58,7 @@ public class RunningParameters implements Serializable{
 		this.globalEpsilon = epsilon;
 		this.destinationDistributionString = destinationDistributionString;
 		this.queryString = queryString;
+		this.ntpTypeString = ntpTypeString;
 		epsilonInterval = epsilonStart = epsilonStop = 0;
 		runQuery = false;
 		
@@ -86,7 +91,7 @@ public class RunningParameters implements Serializable{
 	   this.queryString = p.queryString; 
 	   this.initialRandomSeed = p.initialRandomSeed;
 	   this.timestampType = p.timestampType;
-	   
+	   this.ntpTypeString = p.ntpTypeString;
 		if(queryString.startsWith("yes")) {
 			this.runQuery = true;
 			String lineParameters = queryString.split("=")[1];
