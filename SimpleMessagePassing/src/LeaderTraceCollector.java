@@ -60,7 +60,7 @@ public class LeaderTraceCollector {
 	public void addTraceFrom(LocalTraceCollector in, int from) {
 		try {
 			globalTraceCounter++;
-			System.out.println(globalTraceCounter);
+			//System.out.println(globalTraceCounter);
 			//globalTrace.get(from).addAll(in.getLocalTrace()); 
 			//globalHvcTrace.get(from).addAll(in.getHvcTrace());
 			messageSizes.addAll(in.getMessageSizes());
@@ -154,7 +154,7 @@ public class LeaderTraceCollector {
 	}
 	
 	
-	public void writeHvcSizeHitogramSnapsnotToFile(String name, FileWriter outputLog, String outputFilename) throws IOException {
+	public void writeHvcSizeHistogramSnapsnotToFile(String name, FileWriter outputLog, String outputFilename) throws IOException {
 		 
 		int [] frequency = new int[numProcesses];
 		int traceLength = globalHvcSizeOverTime.get(1).size();	
@@ -195,7 +195,6 @@ public class LeaderTraceCollector {
 			FileWriter file = new FileWriter("./" + outputFilename+name,false);
 			int traceLength = globalHvcSizeOverEpsilon.get(1).size();
 			
-			System.out.println(traceLength);
 			for(int i=0;i<traceLength;i++) {
 				double sum = 0;
 				int num_events = 0;
@@ -257,7 +256,7 @@ public class LeaderTraceCollector {
 			outputLog.write(System.getProperty( "line.separator" ));
 			outputLog.write("| Minimum message size: " + messageSizes.get(0)  + " B"); 
 			outputLog.write(System.getProperty( "line.separator" ));
-			outputLog.write("| Median message size: " + messageSizes.get(messageSizes.size()/2)+messageSizes.get(messageSizes.size()/2-1)/2.0  + " B"); 
+			outputLog.write("| Median message size: " + (messageSizes.get(messageSizes.size()/2)+messageSizes.get(messageSizes.size()/2-1))/2.0  + " B"); 
 			outputLog.write(System.getProperty( "line.separator" ));
 			outputLog.write("| Maximum message size: " + messageSizes.get(messageSizes.size()-1) + " B");
 			outputLog.write(System.getProperty( "line.separator" ));

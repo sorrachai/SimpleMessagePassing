@@ -50,7 +50,7 @@ public class VectorClock implements CausalityClock{
 		// TODO Auto-generated method stub
 		VectorClock fromMessage = (VectorClock) m;
 		entries[myIndex]++;
-		for(int i=0;i<entries.length;i++) {
+		for(int i=1;i<entries.length;i++) {
 			entries[i] = Math.max(entries[i], fromMessage.entries[i]);
 		}
 	}
@@ -65,7 +65,7 @@ public class VectorClock implements CausalityClock{
 	public void print() {
 		String out= new String();
 		out += "[";
-		for(int i=0;i<entries.length;i++) {
+		for(int i=1;i<entries.length;i++) {
 			out += Integer.toString(entries[i])+",";
 		}
 		out += "]";

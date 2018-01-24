@@ -88,7 +88,7 @@ public class SimpleMessageUtilities {
 	}
 	
 	public static double getAmazonNtpOffset() {
-		return runCommandReturnDouble("chronyc tracking | awk \'/RMS offset/ { print $4 }\'");
+		return runCommandReturnDouble("chronyc tracking | awk \'/RMS offset/ { print $4 }\'") *1000;
 	}
 	public static Message getOobMessage(Address dest, Packet p) {
 		//Get out-of-band message which no longer guarantee FIFO delivery

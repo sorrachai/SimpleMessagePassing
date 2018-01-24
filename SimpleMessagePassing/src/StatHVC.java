@@ -55,6 +55,8 @@ public class StatHVC implements CausalityClock {
 				num_inactive++;
 			} 
 		}
+	//	System.out.println("numProcesses= "+numProcesses);
+	//	System.out.println("numInactive= "+num_inactive);
 		return numProcesses-num_inactive;
 	}
 	public void timestampDummyEvent(Instant t) {
@@ -92,7 +94,7 @@ public class StatHVC implements CausalityClock {
 		//String out= new String();
 		//out += "[";
 		System.out.println("[");
-		for(int i=0;i<entries.length;i++) { 
+		for(int i=1;i<entries.length;i++) { 
 			System.out.println(entries[i]);
 		}  
 		System.out.println("]\n Number entries: ");

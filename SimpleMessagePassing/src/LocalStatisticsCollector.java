@@ -1,8 +1,8 @@
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
+import java.io.Serializable; 
 import java.util.Collections;
+import java.util.Vector;
 
 public class LocalStatisticsCollector implements Serializable{
 
@@ -11,7 +11,7 @@ public class LocalStatisticsCollector implements Serializable{
 	 */
 	private static final long serialVersionUID = -2380259998135200125L;
 	public LocalStatisticsCollector() {
-		localRTTs = new ArrayList<>();
+		localRTTs = new Vector<>();
 	}
 	private long computeMedian() {
 		if(localRTTs.isEmpty()) return -1; 
@@ -28,8 +28,11 @@ public class LocalStatisticsCollector implements Serializable{
 		if(localRTTs.isEmpty()) return -1; 
 		return Math.round((localRTTs.get((localRTTs.size()*3)/4)));
 	}
+ 
 	public void printStatistics() {
+		
 		Collections.sort(localRTTs); 
+		
 		System.out.println("-----------------");			
 		System.out.println("| Average Latency: " + Math.round((double)sumLocalRTTs/(double)numLocalRTTs) + " mu-sec");
 		System.out.println("| Minimum Latency: " + minLocalRTT  + " mu-sec");
@@ -40,7 +43,7 @@ public class LocalStatisticsCollector implements Serializable{
 		System.out.println("-----------------");
 	}
 	public void logStatistics(FileWriter outputLog) throws IOException {
-		 Collections.sort(localRTTs); 
+		Collections.sort(localRTTs); 
 		outputLog.write("---------------- ");
 		outputLog.write(System.getProperty( "line.separator" ));
 		outputLog.write("| Average Latency: " + Math.round((double)sumLocalRTTs/(double)numLocalRTTs) + " mu-sec");
@@ -78,11 +81,12 @@ public class LocalStatisticsCollector implements Serializable{
 		maxLocalRTT = Math.max(newRTT,maxLocalRTT);
 		localRTTs.add(newRTT);
 	}
+ 
 	private long sumLocalRTTs =0;
 	private long numLocalRTTs =0; 
 	private long minLocalRTT = Long.MAX_VALUE; 
 	private long maxLocalRTT = Long.MIN_VALUE;
 	private int numReceived = 0;
-	private ArrayList<Long> localRTTs;
+	private Vector<Long> localRTTs;
 	
 }

@@ -58,7 +58,9 @@ public class Timestamp implements java.io.Serializable {
 				break;
 		}
 	}
-	
+	public TimestampType getType() {
+		return type;
+	}
 	public void timestampSendEvent() {
 		if(this.type == TimestampType.NO_TIMESTAMP) return;
 		timestampSendEventHLC();

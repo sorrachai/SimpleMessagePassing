@@ -19,8 +19,8 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 	@SuppressWarnings("resource")
 	private void start() throws Exception {
 		//channel=new JChannel("tcp.xml").setReceiver(this);
-		//channel=new JChannel("simpleMessageJgroupConfig.xml").setReceiver(this);
-		channel=new JChannel().setReceiver(this);
+		channel=new JChannel("simpleMessageJgroupConfig.xml").setReceiver(this);
+		//channel=new JChannel().setReceiver(this);
         channel.connect("Cluster"); 
         
         localComputation();
@@ -63,14 +63,15 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 			 		LocalStatisticsCollector receivedLocalStatistics = receivedPacket.getLocalStatisticsCollector();
 			 		synchronized(localStatisticsCollector) {
 			 			localStatisticsCollector.pushLocalStatistics(receivedLocalStatistics);
-			 		}
-			 		if(localStatisticsCollector.numReceivedEqualTo(numWorkers)) { 
-			 			localStatisticsCollector.printStatistics();
-			 			
-			 			if(state == LocalState.SETUP_LATENCY_RUN) {
-			 				localStatisticsCollector.logStatistics(outputLog);
-			 			}
-			 			else state = LocalState.IDLE;
+				 		if(localStatisticsCollector.numReceivedEqualTo(numWorkers)) { 
+				 			
+				 			localStatisticsCollector.printStatistics();
+				 			
+				 			if(state == LocalState.SETUP_LATENCY_RUN) {
+				 				localStatisticsCollector.logStatistics(outputLog);
+				 			}
+				 			else state = LocalState.IDLE;
+				 		}
 			 		}
 			 		break;
 				case NORMAL_RECEIVE: 
@@ -107,7 +108,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					state = LocalState.STOP;
 					break;
 				case CONFIG_FINISH: 
-					System.out.print("Received CONFIG_FINISH ");
+				//	System.out.print("Received CONFIG_FINISH ");
 					LocalTraceCollector receivedLocalTrace = receivedPacket.getAllLocalEvents();
 					int from = receivedPacket.getIndexFrom();
 					synchronized(leaderTraceCollector) {
@@ -115,19 +116,20 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 							leaderTraceCollector.addHvcSizeOverEpsilon(receivedLocalTrace, from);
 						}
 						leaderTraceCollector.addTraceFrom(receivedLocalTrace,from);
+					
+						if ( leaderTraceCollector.hasReceivedFromAllMembers() ) {
+							//leaderTraceCollector.printGlobalTrace();
+							leaderTraceCollector.printStatistics(parameters);
+							leaderTraceCollector.logStatistics(outputLog, parameters);
+							
+							leaderTraceCollector.writeHvcSizeHistogramSnapsnotToFile("HvcHistogram.txt",outputLog,outputFilename);
+							leaderTraceCollector.writeHvcSizeOverTimeRawToFile("HvcOverTimeRaw.txt", outputLog,outputFilename);
+							leaderTraceCollector.writeHvcSizeOverTimeAvgToFile("HvcOverTimeAvg.txt",outputLog,outputFilename);
+							
+							if(parameters.runQuery) leaderTraceCollector.writeHvcSizeOverEpsilonToFile("HvcOverEpsilon.txt",outputLog,outputFilename);
+							state = LocalState.IDLE;
+						} 
 					}
-					if ( leaderTraceCollector.hasReceivedFromAllMembers() ) {
-						//leaderTraceCollector.printGlobalTrace();
-						leaderTraceCollector.printStatistics(parameters);
-						leaderTraceCollector.logStatistics(outputLog, parameters);
-						
-						leaderTraceCollector.writeHvcSizeHitogramSnapsnotToFile("HvcHistogram.txt",outputLog,outputFilename);
-						leaderTraceCollector.writeHvcSizeOverTimeRawToFile("HvcOverTimeRaw.txt", outputLog,outputFilename);
-						leaderTraceCollector.writeHvcSizeOverTimeAvgToFile("HvcOverTimeAvg.txt",outputLog,outputFilename);
-						
-						if(parameters.runQuery) leaderTraceCollector.writeHvcSizeOverEpsilonToFile("HvcOverEpsilon.txt",outputLog,outputFilename);
-						state = LocalState.IDLE;
-					} 
 					break;
 				case REQUEST_INTERNET_NTP: 
 					state = LocalState.GET_INTERNET_NTP;
@@ -187,20 +189,22 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		for(double d : globalNtpOffset) {
 			System.out.print(d + " ");
 		}
-		System.out.println("\nAverage Offset is : " + SimpleMessageUtilities.average(globalNtpOffset));
-		System.out.println("Max Offset is : " + SimpleMessageUtilities.max(globalNtpOffset));
+		System.out.println("\nAverage Offset is : " + SimpleMessageUtilities.average(globalNtpOffset)  + " ms");
+		System.out.println("Max Offset is : " + SimpleMessageUtilities.max(globalNtpOffset) + " ms");
 		System.out.println("---------------- ");
 	}
 	
 	private void logOffsetInfo() throws IOException {
 		outputLog.write("-------- listing offsets -------- ");
+		
 		outputLog.write(System.getProperty( "line.separator" ));
 		for(double d : globalNtpOffset) {
 			outputLog.write(d + " ");
 		}
-		outputLog.write("Average Offset is : " + SimpleMessageUtilities.average(globalNtpOffset));
 		outputLog.write(System.getProperty( "line.separator" ));
-	    	outputLog.write("Max Offset is : " + SimpleMessageUtilities.max(globalNtpOffset));
+		outputLog.write("Average Offset is : " + SimpleMessageUtilities.average(globalNtpOffset) + " ms");
+		outputLog.write(System.getProperty( "line.separator" ));
+	    	outputLog.write("Max Offset is : " + SimpleMessageUtilities.max(globalNtpOffset) + " ms");
 	    	outputLog.write(System.getProperty( "line.separator" ));
 		outputLog.write("---------------- ");
 		outputLog.write(System.getProperty( "line.separator" ));
@@ -225,20 +229,20 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		localSetup();
 		this.localClock = new Timestamp(parameters.timestampType,this.members.size(), myIndexOfTheGroup,parameters.globalEpsilon);
 		parameters.setRandom(myIndexOfTheGroup);
-		localTraceCollector = new LocalTraceCollector(parameters.numberOfMembers);
+		localTraceCollector = new LocalTraceCollector(parameters.numberOfMembers, members.get(0));
 	}
 	private void printInstruction() {
 		System.out.println("usage: start "
-						+ "[int duration:secs] "
-						+ "[int timeunit:micro secs] "
+						+ "[int duration:s] "
+						+ "[int timeunit:mu-s] "
 						+ "[unicast_probability:0-1] "
 						+ "[long hvc_collecting_peroid:ms] "
-						+ "[long epsilon:micro secs] "
+						+ "[long epsilon:mu-s] "
 						+ "[string uniform || zipf={double skew}]" 
-						+ "[string query: no || yes={epsilon_start:epsilon_interval:epsilon_stop}"
+						+ "[string query: no || yes={epsilon_start:epsilon_interval:epsilon_stop} mu-s"
 						+ "[string causality_clock: {hvc,vc,hlc, stat_hvc, no_clock}" 
 						+ "[string ntp_type: {amazon, internet}");
-		System.out.println("usage2: get num_nodes || ntp_internet (ms) || ntp_amazon (s) || latency (mu-s)");
+		System.out.println("usage2: get num_nodes || ntp_internet (ms) || ntp_amazon (ms) || latency (mu-s)");
 		System.out.println("usage3: exit");
 	}
 	private boolean correctFormat(String[] cmd) {
@@ -270,7 +274,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 			
 		} else if(causalityClockString.equals("stat_hvc")) {
 			
-		} else if(causalityClockString.equals("no")) {
+		} else if(causalityClockString.equals("no_clock")) {
 			
 		} else {
 			return false;
@@ -335,7 +339,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 		System.out.println(destinationDistributionString);
 		System.out.println(queryString);
 		System.out.println(causalityClockString);
-		System.out.println("NTP Type "+ ntpTypeString);
+		System.out.println("NTP type ="+ ntpTypeString);
 		System.out.println("---------");
 		
 		 
@@ -513,7 +517,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					 }
 					 packetinfo = new Packet(MessageType.REPLY_NTP, ntpOffset);
 					 channel.send(members.get(0),packetinfo);
-					if(state==LocalState.GET_AMAZON_NTP || state==LocalState.GET_AMAZON_NTP_RUN) {
+					if(state==LocalState.GET_AMAZON_NTP || state==LocalState.GET_INTERNET_NTP) {
 						state = LocalState.IDLE;
 					} else {
 						state = LocalState.SETUP_LATENCY_RUN;
@@ -539,6 +543,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						 pingDestination = (pingDestination+1)%numProcesses;
 					 }
 					 Thread.sleep(1000);
+					
 					 localStatisticsCollector.printStatistics();
 					 channel.send(members.get(0),new Packet(MessageType.COLLECT_LATENCY, localStatisticsCollector));
 					 state = LocalState.IDLE;
@@ -586,7 +591,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 								Packet packet = new Packet(MessageType.NORMAL_RECEIVE,localClock);
 								channel.send(SimpleMessageUtilities.getOobMessage(members.get(destination), packet));
 							}
-							localTraceCollector.pushLocalTrace(new LocalEvent(EventType.SEND_MESSAGE, localClock, Instant.now()));
+							localTraceCollector.pushLocalTraceSend(new LocalEvent(EventType.SEND_MESSAGE, localClock, Instant.now()));
 						//	System.out.println("Send to : " +destination);
 						//	localClock.print();
 						}
@@ -619,6 +624,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 					 
 					continue;
 				case FINISH_LATENCY_RUN:
+					
 					localStatisticsCollector.printStatistics();
 					channel.send(members.get(0),new Packet(MessageType.COLLECT_LATENCY, localStatisticsCollector));
 					state = LocalState.SETUP_NORMAL_RUN; 

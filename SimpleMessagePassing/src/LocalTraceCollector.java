@@ -1,7 +1,9 @@
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Vector; 
+import java.util.Vector;
+
+import org.jgroups.Address; 
 
 public class LocalTraceCollector implements Serializable {
 
@@ -9,7 +11,7 @@ public class LocalTraceCollector implements Serializable {
 	 * 
 	 */
 	private static final long serialVersionUID = -955345333561783777L;
-	public LocalTraceCollector(int numberOfMembers) {
+	public LocalTraceCollector(int numberOfMembers, Address leader) {
 		this.numberOfMembers = numberOfMembers;
 		localTrace = new Vector<>();
 		hvcTrace = new ArrayList<>();
@@ -24,6 +26,11 @@ public class LocalTraceCollector implements Serializable {
         		hvcSizeHistogram[i] = 0;
         }
         numSentMessages=0;
+        this.leader = leader;
+        cValueHistogram = new Vector<>();
+        for(int i = 0; i< 101;i++) {
+        		cValueHistogram.add(0);
+        }
 	}
 	public ArrayList<Long> getMessageSizes() {
 		return messageSizes;
@@ -58,15 +65,26 @@ public class LocalTraceCollector implements Serializable {
 	}
 	public void pushLocalTrace(LocalEvent e) {
 		localTrace.add(e);
+		/*if(e.localCausalityClock.getType()==TimestampType.HLC) {
+			int c = (int)e.localCausalityClock.getC();
+			cValueHistogram.set(c, cValueHistogram.get(c)+1);
+		}*/
 		/*if(e.type==EventType.SEND_MESSAGE || e.type==EventType.RECEIVE_MESSAGE || e.type == EventType.LOCAL_EVENT) {
 			int numEntries = ((StatHVC)(e.localTimestamp)).getNumberActiveEntries();
 			hvcSizeHistogram[numEntries]++;
 		}*/
-		if(e.eventType==EventType.SEND_MESSAGE) {
+		/*if(e.eventType==EventType.SEND_MESSAGE) {
 			numSentMessages++;
-			long messagesSize = SimpleMessageUtilities.getOobMessage(null, new Packet(MessageType.NORMAL_RECEIVE,e.localCausalityClock)).size();
+			long messagesSize = SimpleMessageUtilities.getOobMessage(leader, new Packet(MessageType.NORMAL_RECEIVE,e.localCausalityClock)).size();
 			messageSizes.add(messagesSize);
-		}
+		}*/
+	} 
+	public void pushLocalTraceSend(LocalEvent e) {
+		localTrace.add(e);
+		numSentMessages++;
+		long messagesSize = SimpleMessageUtilities.getOobMessage(leader, new Packet(MessageType.NORMAL_RECEIVE,e.localCausalityClock)).size();
+		messageSizes.add(messagesSize);
+
 	}
 	
 	public void fillHvcTrace(Instant initTime, long period, Instant stopTime) {
@@ -120,7 +138,7 @@ public class LocalTraceCollector implements Serializable {
 		for(LocalEvent e : hvcTrace) {
 			//tlong.add(e.localWallClock);
 			hvcSizeOverTime.add(e.localCausalityClock.getNumberActiveEntries());
-			hvcSizeOverTimeDomain.add(e.localWallClock.minusMillis(5000+duration+period));
+			hvcSizeOverTimeDomain.add(e.localWallClock.minusMillis(5000+duration));
 		}
 	/*	System.out.print("HVC_SIZE TIME \n[ ");
 		long first_time = tlong.get(0);
@@ -150,8 +168,9 @@ public class LocalTraceCollector implements Serializable {
 			hvcSizeOverEpsilonNumEvents.add(numEvents);
 			hvcSizeOverEpsilonDomain.add(eps);
 			//hvcSizeOverEpsilonNumEvents += Integer.toString(numEvents)+" ";
+			//System.out.println("AVERAGE HVC SIZE OVER eps= "+ eps + " is: " +sumHVCSize/numEvents);
 		} 
-	 
+		
 	}
 	
 	public void printLocalTrace() {
@@ -160,8 +179,10 @@ public class LocalTraceCollector implements Serializable {
 		}
 	}
 	private int numberOfMembers;
+	private transient Address leader;
 	private ArrayList<LocalEvent> hvcTrace;
 	private Vector<LocalEvent> localTrace;
+	private Vector<Integer> cValueHistogram;
 	private ArrayList<Integer> hvcSizeOverTime;
 	private ArrayList<Instant> hvcSizeOverTimeDomain;
 	private ArrayList<Integer> hvcSizeOverEpsilon;  
@@ -170,4 +191,5 @@ public class LocalTraceCollector implements Serializable {
 	private int [] hvcSizeHistogram;
 	private int numSentMessages;
 	private ArrayList<Long> messageSizes;
+	
 }
