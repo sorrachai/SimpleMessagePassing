@@ -31,9 +31,9 @@ public class LeaderTraceCollector {
 		
 		globalHvcSizeHistogram = new int[numProcesses];
         for(int i=0;i<this.numProcesses;i++) {
-        	globalHvcSizeHistogram[i] = 0;
+        		globalHvcSizeHistogram[i] = 0;
         }
-        globalNumSentMessages=0;
+        globalNumRecvMessages=0;
         
 	} 
 	
@@ -66,7 +66,7 @@ public class LeaderTraceCollector {
 			messageSizes.addAll(in.getMessageSizes());
 			globalHvcSizeOverTime.get(from).addAll(in.getHvcSizeOverTime());
 			globalHvcSizeOverTimeDomain.get(from).addAll(in.getHvcSizeOverTimeDomain());
-			globalNumSentMessages+=in.getNumSentMessages();
+			globalNumRecvMessages+=in.getNumRecvMessages();
 			int localHvcSizeHistogram [] = in.getHvcSizeHistogram();
 			for(int i=0;i<this.numProcesses;i++) {
 				globalHvcSizeHistogram[i] += localHvcSizeHistogram[i];
@@ -219,10 +219,10 @@ public class LeaderTraceCollector {
 	}
 	
 	public void printStatistics(RunningParameters parameters) {
-		System.out.println("Number of messages = " + globalNumSentMessages);
+		System.out.println("Number of messages = " + globalNumRecvMessages);
 		//System.out.println("Theoretical number of messages = " + );
 		double theoreticalThroughput= 1000000.0*parameters.unicastProbability/parameters.timeUnitMicrosec;
-		double observedThroughput = 1000*globalNumSentMessages/((double)parameters.duration*(numProcesses-1.0));
+		double observedThroughput = 1000*globalNumRecvMessages/((double)parameters.duration*(numProcesses-1.0));
 		System.out.println("Observed Throughput = " +  observedThroughput + " msgs/sec/node");
 		System.out.println("Theoretical throughput = "+ theoreticalThroughput + " msgs/sec/node");
 		
@@ -236,7 +236,7 @@ public class LeaderTraceCollector {
 		outputLog.write("---------------- ");
 		outputLog.write(System.getProperty( "line.separator" ));
 		double theoreticalThroughput= 1000000.0*parameters.unicastProbability/parameters.timeUnitMicrosec;
-		double observedThroughput = 1000*globalNumSentMessages/((double)parameters.duration*(numProcesses-1.0));
+		double observedThroughput = 1000*globalNumRecvMessages/((double)parameters.duration*(numProcesses-1.0));
 		outputLog.write("| Observed Throughput = " +  observedThroughput + " msgs/sec/node");
 		outputLog.write(System.getProperty( "line.separator" ));
 		outputLog.write("| Theoretical throughput = "+ theoreticalThroughput + " msgs/sec/node");
@@ -248,7 +248,7 @@ public class LeaderTraceCollector {
 		
 		if(!messageSizes.isEmpty()) {
 			Collections.sort(messageSizes); 
-			outputLog.write("Number of messages = " + globalNumSentMessages);
+			outputLog.write("Number of messages = " + globalNumRecvMessages);
 			outputLog.write(System.getProperty( "line.separator" ));
 			outputLog.write("---------------- ");
 			outputLog.write(System.getProperty( "line.separator" ));
@@ -281,7 +281,7 @@ public class LeaderTraceCollector {
 	private ArrayList<ArrayList<Instant>> globalHvcSizeOverTimeDomain;
 	private ArrayList<ArrayList<Integer>> globalHvcSizeOverEpsilonNumEvents;
 	private int [] globalHvcSizeHistogram;
-	private int globalNumSentMessages;
+	private int globalNumRecvMessages;
 	
 
 }

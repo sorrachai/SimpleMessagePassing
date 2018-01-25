@@ -81,7 +81,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 						synchronized(localClock) {
 							
 							localClock.timestampReceiveEvent(t);
-							
+							localTraceCollector.pushLocalTraceReceive(new LocalEvent(EventType.RECEIVE_MESSAGE,localClock,Instant.now()));							
 							/*
 							System.out.println("Received: ");
 							t.print();
@@ -92,7 +92,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 							localClock.print(); */ 
 						}
 						
-						localTraceCollector.pushLocalTrace(new LocalEvent(EventType.RECEIVE_MESSAGE,localClock,Instant.now()));
+						
 					}
 					break;
 				
@@ -591,7 +591,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 								Packet packet = new Packet(MessageType.NORMAL_RECEIVE,localClock);
 								channel.send(SimpleMessageUtilities.getOobMessage(members.get(destination), packet));
 							}
-							localTraceCollector.pushLocalTraceSend(new LocalEvent(EventType.SEND_MESSAGE, localClock, Instant.now()));
+							localTraceCollector.pushLocalTrace(new LocalEvent(EventType.SEND_MESSAGE, localClock, Instant.now()));
 						//	System.out.println("Send to : " +destination);
 						//	localClock.print();
 						}
@@ -681,6 +681,7 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 			
 		} 
 		
+		System.setProperty("java.net.preferIPv6Addresses", "false");
 		System.setProperty("java.net.preferIPv4Stack", "true");
 		new SimpleMessagePassing().start();	
 	}
