@@ -34,30 +34,30 @@ public class LocalStatisticsCollector implements Serializable{
 		Collections.sort(localRTTs); 
 		
 		System.out.println("-----------------");			
-		System.out.println("| Average Latency: " + Math.round((double)sumLocalRTTs/(double)numLocalRTTs) + " mu-sec");
-		System.out.println("| Minimum Latency: " + minLocalRTT  + " mu-sec");
-		System.out.println("| Q1 Latency: " + computeQ1()  + " mu-sec");
-		System.out.println("| Median Latency: " + computeMedian()  + " mu-sec");
-		System.out.println("| Q3 Latency: " + computeQ3()  + " mu-sec");
-		System.out.println("| Maximum Latency: " + maxLocalRTT + " mu-sec");
+		System.out.println("| Average Latency: " + ((double)sumLocalRTTs/(double)numLocalRTTs)/1000.0+ " ms");
+		System.out.println("| Minimum Latency: " + minLocalRTT/1000.0  + " ms");
+		System.out.println("| Q1 Latency: " + computeQ1()/1000.0  + " ms");
+		System.out.println("| Median Latency: " + computeMedian()/1000.0  + " ms");
+		System.out.println("| Q3 Latency: " + computeQ3()/1000.0 + " ms");
+		System.out.println("| Maximum Latency: " + maxLocalRTT/1000.0 + " ms");
 		System.out.println("-----------------");
 	}
 	public void logStatistics(FileWriter outputLog) throws IOException {
 		Collections.sort(localRTTs); 
 		outputLog.write("---------------- ");
 		outputLog.write(System.getProperty( "line.separator" ));
-		outputLog.write("| Average Latency: " + Math.round((double)sumLocalRTTs/(double)numLocalRTTs) + " mu-sec");
+		outputLog.write("| Average Latency: " + ((double)sumLocalRTTs/(double)numLocalRTTs)/1000.0 + " ms");
 		outputLog.write(System.getProperty( "line.separator" ));
-		outputLog.write("| Minimum Latency: " + minLocalRTT  + " mu-sec");
+		outputLog.write("| Minimum Latency: " + minLocalRTT / 1000.0 + " ms");
 		outputLog.write(System.getProperty( "line.separator" ));
  
-		outputLog.write("| Q1 Latency: " + computeQ1()  + " mu-sec");
+		outputLog.write("| Q1 Latency: " + computeQ1() / 1000.0  + " ms");
 		outputLog.write(System.getProperty( "line.separator" ));
-		outputLog.write("| Median Latency: " + computeMedian()  + " mu-sec");
+		outputLog.write("| Median Latency: " + computeMedian() /1000.0 + " ms");
 		outputLog.write(System.getProperty( "line.separator" ));
-		outputLog.write("| Q3 Latency: " + computeQ3()  + " mu-sec");
+		outputLog.write("| Q3 Latency: " + computeQ3() /1000.0 + " ms");
 		outputLog.write(System.getProperty( "line.separator" ));
-		outputLog.write("| Maximum Latency: " + maxLocalRTT + " mu-sec");
+		outputLog.write("| Maximum Latency: " + maxLocalRTT / 1000.0 + " ms");
 		outputLog.write(System.getProperty( "line.separator" ));
 		outputLog.write("-----------------");
 		outputLog.write(System.getProperty( "line.separator" ));

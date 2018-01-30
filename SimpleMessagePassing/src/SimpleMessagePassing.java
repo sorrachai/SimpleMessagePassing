@@ -141,7 +141,9 @@ public class SimpleMessagePassing extends ReceiverAdapter {
 				case REPLY_NTP:
 					double localNtpOffset = receivedPacket.getNtpOffset();
 					globalNtpOffset.add(localNtpOffset);
+					
 					if(globalNtpOffset.size()==numWorkers) {
+						
 						reportOffsetInfo();	
 						if(state==LocalState.GET_AMAZON_NTP_RUN || state==LocalState.GET_INTERNET_NTP_RUN ) 
 							logOffsetInfo();	

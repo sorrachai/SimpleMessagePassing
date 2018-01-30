@@ -90,6 +90,7 @@ public class LocalTraceCollector implements Serializable {
 		localTrace.add(e);
 		numRecvMessages++;
 		long messagesSize = SimpleMessageUtilities.getOobMessage(leader, new Packet(MessageType.NORMAL_RECEIVE,e.localCausalityClock)).size();
+		//long messagesSize = new Message(leader, "test").size();
 		messageSizes.add(messagesSize);
 	}
 	

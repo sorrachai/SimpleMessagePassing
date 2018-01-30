@@ -98,7 +98,7 @@ public class LeaderTraceCollector {
 			outputLog.write(name);	
 			outputLog.write(System.getProperty( "line.separator" ));
 			
-			FileWriter file = new FileWriter("./" + outputFilename+ name,false);
+			FileWriter file = new FileWriter("./hvcSizeOverTimeAvg" + outputFilename+ name,false);
 			int traceLength = globalHvcSizeOverTime.get(1).size();
 			
 			for(int i=0;i<traceLength;i++) {
@@ -132,7 +132,7 @@ public class LeaderTraceCollector {
 			outputLog.write(System.getProperty( "line.separator" ));
 		
 		
-			FileWriter file = new FileWriter("./" + outputFilename + name,false);
+			FileWriter file = new FileWriter("./hvcSizeOverTimeRaw" + outputFilename + name,false);
 			int traceLength = globalHvcSizeOverTime.get(1).size();
 			
 			for(int i=0;i<traceLength;i++) { 
@@ -168,7 +168,7 @@ public class LeaderTraceCollector {
 		outputLog.write(name);	
 		outputLog.write(System.getProperty( "line.separator" ));
 		
-		SimpleMessageUtilities.writeHistogramToFile(outputFilename+name, frequency, totalFrequency, outputLog);
+		SimpleMessageUtilities.writeHistogramToFile("hvcSizeHistogramSnapsnot"+outputFilename+name, frequency, totalFrequency, outputLog);
 		
 	}
  	
@@ -183,7 +183,7 @@ public class LeaderTraceCollector {
 		outputLog.write(System.getProperty( "line.separator" ));
 		
 				
-		SimpleMessageUtilities.writeHistogramToFile(outputFilename+name, globalHvcSizeHistogram, totalNumEvents,outputLog);
+		SimpleMessageUtilities.writeHistogramToFile("hvcSizeHistogram"+outputFilename+name, globalHvcSizeHistogram, totalNumEvents,outputLog);
 	}
  	
 	public void writeHvcSizeOverEpsilonToFile(String name, FileWriter outputLog, String outputFilename) {
@@ -192,7 +192,7 @@ public class LeaderTraceCollector {
 			outputLog.write(name);	
 			outputLog.write(System.getProperty( "line.separator" ));
 		
-			FileWriter file = new FileWriter("./" + outputFilename+name,false);
+			FileWriter file = new FileWriter("./hvcSizeOverEpsilon" + outputFilename+name,false);
 			int traceLength = globalHvcSizeOverEpsilon.get(1).size();
 			
 			for(int i=0;i<traceLength;i++) {
@@ -215,6 +215,7 @@ public class LeaderTraceCollector {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+	
 		}
 	}
 	

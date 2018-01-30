@@ -5,13 +5,13 @@ public class Packet implements java.io.Serializable {
 	private static final long serialVersionUID = -8815078910306869742L;
 	
 	private MessageType type;
-	private Timestamp localTimestamp;
-	private LocalTraceCollector allLocalEvents;
+	private Timestamp localTimestamp = null;
+	private LocalTraceCollector allLocalEvents = null;
 	private int indexFrom;
-	private RunningParameters parameters; 
+	private RunningParameters parameters = null;
 	private double ntpOffset;
-	private LocalStatisticsCollector localStat; 
-	  private Instant time;
+	private LocalStatisticsCollector localStat = null; 
+	private Instant time = null;
 	  
 	  public Instant getTime() {
 		  return time;
@@ -55,9 +55,14 @@ public class Packet implements java.io.Serializable {
 		  if(type == MessageType.NORMAL_RECEIVE) {
 			  this.type = type;
 			  this.localTimestamp = localTimestamp;
+			   time = null;
+			   localStat = null;
+			   allLocalEvents = null;
+			   parameters = null;
 		  } 	
 		  else {
-			  this.type = MessageType.IGNORE;
+			   this.type = MessageType.IGNORE;
+			  
 		  }
 	  }
 	  public Packet(MessageType type, LocalTraceCollector allLocalEvents,int indexFrom) {

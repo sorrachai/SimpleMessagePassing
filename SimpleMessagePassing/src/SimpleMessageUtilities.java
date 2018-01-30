@@ -84,11 +84,15 @@ public class SimpleMessageUtilities {
 		return m;
 	}
 	public static double getInternetNtpOffset() {
-		return runCommandReturnDouble("ntpq -c kerninfo | awk \'/offset/ { print $3 }\'"); 
+		double result =runCommandReturnDouble("ntpq -c kerninfo | awk \'/offset/ { print $3 }\'");  
+		System.out.println(result);
+		return result;
 	}
 	
 	public static double getAmazonNtpOffset() {
-		return runCommandReturnDouble("chronyc tracking | awk \'/RMS offset/ { print $4 }\'") *1000;
+		double result =runCommandReturnDouble("chronyc tracking | awk \'/Last offset/ { print $4 }\'") *1000;
+		System.out.println(result);
+		return result;
 	}
 	public static Message getOobMessage(Address dest, Packet p) {
 		//Get out-of-band message which no longer guarantee FIFO delivery
@@ -113,7 +117,7 @@ public class SimpleMessageUtilities {
 			while ((line = buf.readLine()) != null) {
 			    output += line + "\n";
 			}
-			System.out.println(output);
+		//	System.out.println(output);
 			return Double.parseDouble(output);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
